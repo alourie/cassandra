@@ -23,11 +23,11 @@ jobs:
                 3) ant stress-test ;;
               esac
       - run: |
-         mkdir -p $CIRCLE_WORKING_DIRECTORY/junit/
-         case $CIRCLE_NODE_INDEX in [0123]) find ./build/test/output/ -iname "*.xml" -exec cp {} $CIRCLE_WORKING_DIRECTORY/junit/ \; ;;esac:
+         mkdir -p ~/junit/
+         find ./build/test/output/ -iname "*.xml" -exec cp {} ~/junit/ 
       - store_test_results: 
-         path: $CIRCLE_WORKING_DIRECTORY/junit
+         path: ~/junit
       - store_artifacts: 
-         path: $CIRCLE_WORKING_DIRECTORY/junit
+         path: ~/junit
 
 
