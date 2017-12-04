@@ -1,6 +1,8 @@
 version: 2
 jobs: 
   build:
+    environment: 
+     CIRCLE_TEST_REPORTS: $CIRCLE_WORKING_DIRECTORY
     docker:
       - image: circleci/openjdk:8
     steps:  
