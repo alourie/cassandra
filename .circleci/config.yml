@@ -1,12 +1,14 @@
 version: 2
 jobs:
-  test:
+  build:
     docker:
     - image: circleci/openjdk:8
     steps:
       - run:
           name: Install dependencies
           command: sudo apt-get update; sudo apt-get install wamerican
+  test:
+    steps:
       - run:
           name: Run tests
           command: case $CIRCLE_NODE_INDEX in 0) ant eclipse-warnings; ant test -Dtest.runners=1;; 1) ant long-test ;; 2) ant test-compression ;; 3) ant stress-test ;;esac:
