@@ -6,6 +6,13 @@ jobs:
     steps:  
       - checkout
       - run: sudo apt-get update; sudo apt-get install wamerican
+      - restore_cache:
+          key: build-libs
+      - run: ant build
+      - save_cache:
+          key: build-libs
+          paths: 
+           - build/libs
       - run: 
           name: Running Tests
           command: |
