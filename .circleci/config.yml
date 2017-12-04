@@ -1,0 +1,24 @@
+version: 2
+jobs:
+  test:
+    docker:
+    - image: circleci/openjdk:8
+    steps:
+      - run:
+          name: Install dependencies
+          command: sudo apt-get update; sudo apt-get install wamerican
+      - run:
+          name: Run tests
+          command: case $CIRCLE_NODE_INDEX in 0) ant eclipse-warnings; ant test -Dtest.runners=1;; 1) ant long-test ;; 2) ant test-compression ;; 3) ant stress-test ;;esac:
+      - run:
+          name: Save test results
+          command: |
+           mkdir -p $CIRCLE_TEST_REPORTS/junit/
+           case $CIRCLE_NODE_INDEX in [0123]) find ./build/test/output/ -iname "*.xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \; ;;esac:
+          when: always
+      - store_test_results:
+          path: $CIRCLE_TEST_REPORTS/junit
+      - store_artifacts:
+          path: $CIRCLE_TEST_REPORTS/junit
+
+
