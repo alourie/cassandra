@@ -21,6 +21,7 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -219,9 +220,26 @@ final class HintsDescriptor
         }
     }
 
+    static boolean isHintFileValid(Path path)
+    {
+        return isHintFileName(path) && isHintFileNotEmpty(path);
+    }
+
     static boolean isHintFileName(Path path)
     {
         return pattern.matcher(path.getFileName().toString()).matches();
+    }
+
+    static boolean isHintFileNotEmpty(Path path)
+    {
+        try
+        {
+            return Files.size(path) > 0;
+        }
+        catch (IOException e)
+        {
+            throw new FSReadError(e, path.toFile());
+        }
     }
 
     static HintsDescriptor readFromFile(Path path)

@@ -60,7 +60,7 @@ final class HintsCatalog
         {
             Map<UUID, List<HintsDescriptor>> stores =
                 Files.list(hintsDirectory.toPath())
-                     .filter(HintsDescriptor::isHintFileName)
+                     .filter(HintsDescriptor::isHintFileValid)
                      .map(HintsDescriptor::readFromFile)
                      .collect(groupingBy(h -> h.hostId));
             return new HintsCatalog(hintsDirectory, writerParams, stores);
