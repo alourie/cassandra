@@ -1,8 +1,6 @@
 version: 2
 jobs: 
   build:
-    environment: 
-     CIRCLE_TEST_REPORTS: $CIRCLE_WORKING_DIRECTORY
     docker:
       - image: circleci/openjdk:8
     steps:  
@@ -19,11 +17,11 @@ jobs:
                 3) ant stress-test ;;
               esac
       - run: |
-         mkdir -p $CIRCLE_TEST_REPORTS/junit/
-         case $CIRCLE_NODE_INDEX in [0123]) find ./build/test/output/ -iname "*.xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \; ;;esac:
+         mkdir -p $CIRCLE_WORKING_DIRECTORY/junit/
+         case $CIRCLE_NODE_INDEX in [0123]) find ./build/test/output/ -iname "*.xml" -exec cp {} $CIRCLE_WORKING_DIRECTORY/junit/ \; ;;esac:
       - store_test_results: 
-         path: $CIRCLE_TEST_REPORTS/junit
+         path: $CIRCLE_WORKING_DIRECTORY/junit
       - store_artifacts: 
-         path: $CIRCLE_TEST_REPORTS/junit
+         path: $CIRCLE_WORKING_DIRECTORY/junit
 
 
