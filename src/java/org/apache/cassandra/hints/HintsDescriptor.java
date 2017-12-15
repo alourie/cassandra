@@ -19,6 +19,7 @@ package org.apache.cassandra.hints;
 
 import java.io.DataInput;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -220,11 +221,6 @@ final class HintsDescriptor
         }
     }
 
-    static boolean isHintFileValid(Path path)
-    {
-        return isHintFileName(path) && isHintFileNotEmpty(path);
-    }
-
     static boolean isHintFileName(Path path)
     {
         return pattern.matcher(path.getFileName().toString()).matches();
@@ -250,7 +246,8 @@ final class HintsDescriptor
         }
         catch (IOException e)
         {
-            throw new FSReadError(e, path.toFile());
+            logger.warn("The hint file {} failed the validation, ignoring it", path.toFile().toString());
+            return null;
         }
     }
 
