@@ -226,18 +226,6 @@ final class HintsDescriptor
         return pattern.matcher(path.getFileName().toString()).matches();
     }
 
-    static boolean isHintFileNotEmpty(Path path)
-    {
-        try
-        {
-            return Files.size(path) > 0;
-        }
-        catch (IOException e)
-        {
-            throw new FSReadError(e, path.toFile());
-        }
-    }
-
     static HintsDescriptor readFromFile(Path path)
     {
         try (RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r"))
