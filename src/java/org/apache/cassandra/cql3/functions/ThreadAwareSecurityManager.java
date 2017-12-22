@@ -261,7 +261,7 @@ public final class ThreadAwareSecurityManager extends SecurityManager
 
         if (!((SecurityThreadGroup) Thread.currentThread().getThreadGroup()).isPackageAllowed(pkg))
         {
-            RuntimePermission perm = new RuntimePermission("accessClassInPackage." + pkg);
+            RuntimePermission perm = new RuntimePermission("accessClassInPackage: using the package '" + pkg + "' is not permitted");
             throw new AccessControlException("access denied: " + perm, perm);
         }
 

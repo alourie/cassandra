@@ -212,7 +212,7 @@ public class UFScriptTest extends CQLTester
     }
 
     @Test
-    public void testJavascriptFunction() throws Throwable
+    public void testJavascriptStatementCall() throws Throwable
     {
         createTable("CREATE TABLE %s (key int primary key, val double)");
 
@@ -239,6 +239,36 @@ public class UFScriptTest extends CQLTester
                    row(1, 1d, Math.sin(1d)),
                    row(2, 2d, Math.sin(2d)),
                    row(3, 3d, Math.sin(3d))
+        );
+    }
+
+    @Test
+    public void testJavascriptFunctionCall() throws Throwable
+    {
+        createTable("CREATE TABLE %s (key int primary key, val int)");
+
+        String functionBody = '\n' +
+                "(function(){ " +
+                "return 42;})" +
+                "();\n";
+
+        String fName = createFunction(KEYSPACE, "double",
+                "CREATE OR REPLACE FUNCTION %s(input int) " +
+                        "RETURNS NULL ON NULL INPUT " +
+                        "RETURNS int " +
+                        "LANGUAGE javascript\n" +
+                        "AS '" + functionBody + "';");
+
+
+        FunctionName fNameName = parseFunctionName(fName);
+
+        assertRows(execute("SELECT language, body FROM system_schema.functions WHERE keyspace_name=? AND function_name=?",
+                fNameName.keyspace, fNameName.name),
+                row("javascript", functionBody));
+
+        execute("INSERT INTO %s (key, val) VALUES (?, ?)", 1, 5);
+        assertRows(execute("SELECT key, val, " + fName + "(val) FROM %s"),
+                row(1, 5, 42)
         );
     }
 

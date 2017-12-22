@@ -74,6 +74,8 @@ final class ScriptBasedUDFunction extends UDFunction
     // following required by Java Driver
     "java.math",
     "java.nio",
+    "java.io",
+    "java.util.function",
     "java.text",
     "com.google.common.base",
     "com.google.common.collect",
