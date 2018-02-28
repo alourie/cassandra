@@ -147,7 +147,7 @@ public class MessageOut<T>
     }
 
     @VisibleForTesting
-    public MessageOut(VirtualEndpoint from, MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, List<Object> parameters)
+    public MessageOut(VirtualEndpoint from, MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, List<Object> parameters, ConnectionType connectionType)
     {
         this.from = from;
         this.verb = verb;

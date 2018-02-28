@@ -28,7 +28,7 @@ import com.google.common.net.InetAddresses;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public class StartupClusterConnectivityCheckerTest
 {
@@ -37,7 +37,7 @@ public class StartupClusterConnectivityCheckerTest
     {
         StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(70, 10, addr -> true);
         int count = 10;
-        Set<InetAddressAndPort> peers = createNodes(count);
+        Set<VirtualEndpoint> peers = createNodes(count);
         Assert.assertEquals(StartupClusterConnectivityChecker.State.FINISH_SUCCESS,
                             connectivityChecker.checkStatus(peers, new AtomicInteger(count * 2), System.nanoTime(), false, 0));
     }
@@ -47,7 +47,7 @@ public class StartupClusterConnectivityCheckerTest
     {
         StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(70, 10, addr -> true);
         int count = 10;
-        Set<InetAddressAndPort> peers = createNodes(count);
+        Set<VirtualEndpoint> peers = createNodes(count);
         Assert.assertEquals(StartupClusterConnectivityChecker.State.CONTINUE,
                             connectivityChecker.checkStatus(peers, new AtomicInteger(0), System.nanoTime(), false, 0));
     }
@@ -57,7 +57,7 @@ public class StartupClusterConnectivityCheckerTest
     {
         StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(70, 10, addr -> true);
         int count = 10;
-        Set<InetAddressAndPort> peers = createNodes(count);
+        Set<VirtualEndpoint> peers = createNodes(count);
         Assert.assertEquals(StartupClusterConnectivityChecker.State.CONTINUE,
                             connectivityChecker.checkStatus(peers, new AtomicInteger(0), System.nanoTime(), false, 4));
         Assert.assertEquals(StartupClusterConnectivityChecker.State.FINISH_TIMEOUT,
@@ -71,7 +71,7 @@ public class StartupClusterConnectivityCheckerTest
         final int count = 100;
         final int thresholdPercentage = 70;
         StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(thresholdPercentage, 10, predicate);
-        Set<InetAddressAndPort> peers = createNodes(count);
+        Set<VirtualEndpoint> peers = createNodes(count);
 
         AtomicInteger connectedCount = new AtomicInteger();
 
@@ -90,7 +90,7 @@ public class StartupClusterConnectivityCheckerTest
     /**
      * returns true until index = threshold, then returns false.
      */
-    private class UpdatablePredicate implements Predicate<InetAddressAndPort>
+    private class UpdatablePredicate implements Predicate<VirtualEndpoint>
     {
         int index;
         int threshold;
@@ -102,25 +102,25 @@ public class StartupClusterConnectivityCheckerTest
         }
 
         @Override
-        public boolean test(InetAddressAndPort inetAddressAndPort)
+        public boolean test(VirtualEndpoint endpoint)
         {
             index++;
             return index <= threshold;
         }
     }
 
-    private static Set<InetAddressAndPort> createNodes(int count) throws UnknownHostException
+    private static Set<VirtualEndpoint> createNodes(int count) throws UnknownHostException
     {
-        Set<InetAddressAndPort> nodes = new HashSet<>();
+        Set<VirtualEndpoint> nodes = new HashSet<>();
 
         if (count < 1)
             Assert.fail("need at least *one* node in the set!");
 
-        InetAddressAndPort node = InetAddressAndPort.getByName("127.0.0.1");
+        VirtualEndpoint node = VirtualEndpoint.getByName("127.0.0.1");
         nodes.add(node);
         for (int i = 1; i < count; i++)
         {
-            node = InetAddressAndPort.getByAddress(InetAddresses.increment(node.address));
+            node = VirtualEndpoint.getByAddressOnly(InetAddresses.increment(node.address));
             nodes.add(node);
         }
         return nodes;

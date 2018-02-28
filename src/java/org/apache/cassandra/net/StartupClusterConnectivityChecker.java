@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.async.OutboundConnectionIdentifier;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -42,9 +42,9 @@ public class StartupClusterConnectivityChecker
 
     private final int targetPercent;
     private final int timeoutSecs;
-    private final Predicate<InetAddressAndPort> gossipStatus;
+    private final Predicate<VirtualEndpoint> gossipStatus;
 
-    public StartupClusterConnectivityChecker(int targetPercent, int timeoutSecs, Predicate<InetAddressAndPort> gossipStatus)
+    public StartupClusterConnectivityChecker(int targetPercent, int timeoutSecs, Predicate<VirtualEndpoint> gossipStatus)
     {
         if (targetPercent < 0)
         {
@@ -69,7 +69,7 @@ public class StartupClusterConnectivityChecker
         this.gossipStatus = gossipStatus;
     }
 
-    public void execute(Set<InetAddressAndPort> peers)
+    public void execute(Set<VirtualEndpoint> peers)
     {
         if (peers == null || targetPercent == 0)
             return;
@@ -99,7 +99,7 @@ public class StartupClusterConnectivityChecker
         }
     }
 
-    State checkStatus(Set<InetAddressAndPort> peers, AtomicInteger connectedCount, final long startNanos, boolean beyondExpiration, final int completedRounds)
+    State checkStatus(Set<VirtualEndpoint> peers, AtomicInteger connectedCount, final long startNanos, boolean beyondExpiration, final int completedRounds)
     {
         long currentAlive = peers.stream().filter(gossipStatus).count();
         float currentAlivePercent = ((float) currentAlive / (float) peers.size()) * 100;
@@ -140,7 +140,7 @@ public class StartupClusterConnectivityChecker
      * Sends a "connection warmup" message to each peer in the collection, on every {@link OutboundConnectionIdentifier.ConnectionType}
      * used for internode messaging.
      */
-    private AtomicInteger sendPingMessages(Set<InetAddressAndPort> peers)
+    private AtomicInteger sendPingMessages(Set<VirtualEndpoint> peers)
     {
         AtomicInteger connectedCount = new AtomicInteger(0);
         IAsyncCallback responseHandler = new IAsyncCallback()
@@ -160,7 +160,7 @@ public class StartupClusterConnectivityChecker
 
         MessageOut<PingMessage> smallChannelMessageOut = new MessageOut<>(PING, PingMessage.smallChannelMessage, PingMessage.serializer);
         MessageOut<PingMessage> largeChannelMessageOut = new MessageOut<>(PING, PingMessage.largeChannelMessage, PingMessage.serializer);
-        for (InetAddressAndPort peer : peers)
+        for (VirtualEndpoint peer : peers)
         {
             MessagingService.instance().sendRR(smallChannelMessageOut, peer, responseHandler);
             MessagingService.instance().sendRR(largeChannelMessageOut, peer, responseHandler);

@@ -498,7 +498,7 @@ public class CassandraDaemon
         StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(DatabaseDescriptor.getBlockForPeersPercentage(),
                                                                                                       DatabaseDescriptor.getBlockForPeersTimeoutInSeconds(),
                                                                                                       Gossiper.instance::isAlive);
-        Set<InetAddressAndPort> peers = Gossiper.instance.getEndpointStates().stream().map(Map.Entry::getKey).collect(Collectors.toSet());
+        Set<VirtualEndpoint> peers = Gossiper.instance.getEndpointStates().stream().map(Map.Entry::getKey).collect(Collectors.toSet());
         connectivityChecker.execute(peers);
 
         String nativeFlag = System.getProperty("cassandra.start_native_transport");
