@@ -172,7 +172,7 @@ public class NetworkTopologyStrategyTest
     public void tokenFactory(TokenMetadata metadata, String token, byte[] bytes) throws UnknownHostException
     {
         Token token1 = new StringToken(token);
-        VirtualEndpoint add1 = VirtualEndpoint.getByAddress(InetAddress.getByAddress(bytes));
+        VirtualEndpoint add1 = VirtualEndpoint.getByAddress(bytes);
         metadata.updateNormalToken(token1, add1);
     }
 
@@ -186,7 +186,7 @@ public class NetworkTopologyStrategyTest
         Map<String, Integer> datacenters = ImmutableMap.of("rf1", 1, "rf3", 3, "rf5_1", 5, "rf5_2", 5, "rf5_3", 5);
         List<VirtualEndpoint> nodes = new ArrayList<>(NODES);
         for (byte i=0; i<NODES; ++i)
-            nodes.add(VirtualEndpoint.getByAddress(InetAddress.getByAddress(new byte[]{ 127, 0, 0, i})));
+            nodes.add(VirtualEndpoint.getByAddress(new byte[]{ 127, 0, 0, i}));
         for (int run=0; run<RUNS; ++run)
         {
             Random rand = new Random();
