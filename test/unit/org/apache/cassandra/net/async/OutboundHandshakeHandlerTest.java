@@ -18,12 +18,12 @@
 
 package org.apache.cassandra.net.async;
 
-import java.net.InetSocketAddress;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
 import com.google.common.net.InetAddresses;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -39,7 +39,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.compression.Lz4FrameDecoder;
 import io.netty.handler.codec.compression.Lz4FrameEncoder;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.async.HandshakeProtocol.SecondHandshakeMessage;
 import org.apache.cassandra.net.async.OutboundHandshakeHandler.HandshakeResult;
@@ -49,8 +48,8 @@ import static org.apache.cassandra.net.async.OutboundHandshakeHandler.HandshakeR
 public class OutboundHandshakeHandlerTest
 {
     private static final int MESSAGING_VERSION = MessagingService.current_version;
-    private static final InetAddressAndPort localAddr = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 0);
-    private static final InetAddressAndPort remoteAddr = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.2"), 0);
+    private static final VirtualEndpoint localAddr = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 0);
+    private static final VirtualEndpoint remoteAddr = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.2"), 0);
     private static final String HANDLER_NAME = "clientHandshakeHandler";
 
     private EmbeddedChannel channel;

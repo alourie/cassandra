@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.streaming.async;
 
-import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -26,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.google.common.net.InetAddresses;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -35,7 +35,6 @@ import org.junit.Test;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.async.TestScheduledFuture;
 import org.apache.cassandra.streaming.PreviewKind;
 import org.apache.cassandra.streaming.StreamOperation;
@@ -45,7 +44,7 @@ import org.apache.cassandra.streaming.messages.CompleteMessage;
 
 public class NettyStreamingMessageSenderTest
 {
-    private static final InetAddressAndPort REMOTE_ADDR = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.2"), 0);
+    private static final VirtualEndpoint REMOTE_ADDR = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.2"), 0);
 
     private EmbeddedChannel channel;
     private StreamSession session;

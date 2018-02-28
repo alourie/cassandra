@@ -34,7 +34,7 @@ import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.marshal.Int32Type;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.hints.HintsService;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 import static org.junit.Assert.assertEquals;
 import static org.apache.cassandra.cql3.QueryProcessor.executeInternal;
@@ -53,7 +53,7 @@ public class HintedHandOffMetricsTest
         DatabaseDescriptor.getHintsDirectory().mkdirs();
 
         for (int i = 0; i < 99; i++)
-            HintsService.instance.metrics.incrPastWindow(InetAddressAndPort.getLocalHost());
+            HintsService.instance.metrics.incrPastWindow(VirtualEndpoint.getLocalHost());
         HintsService.instance.metrics.log();
 
         UntypedResultSet rows = executeInternal("SELECT hints_dropped FROM system." + SystemKeyspace.PEER_EVENTS_V2);

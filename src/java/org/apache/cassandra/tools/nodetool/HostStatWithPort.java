@@ -18,16 +18,16 @@
 
 package org.apache.cassandra.tools.nodetool;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public class HostStatWithPort
 {
-    public final InetAddressAndPort endpoint;
+    public final VirtualEndpoint endpoint;
     public final boolean resolveIp;
     public final Float owns;
     public final String token;
 
-    public HostStatWithPort(String token, InetAddressAndPort endpoint, boolean resolveIp, Float owns)
+    public HostStatWithPort(String token, VirtualEndpoint endpoint, boolean resolveIp, Float owns)
     {
         this.token = token;
         this.endpoint = endpoint;

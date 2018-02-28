@@ -44,10 +44,10 @@ public class GossipingPropertyFileSnitchTest
                                      final String endpointString, final String expectedDatacenter,
                                      final String expectedRack)
     {
-        final InetAddressAndPort endpoint;
+        final VirtualEndpoint endpoint;
         try
         {
-            endpoint = InetAddressAndPort.getByName(endpointString);
+            endpoint = VirtualEndpoint.getByName(endpointString);
         }
         catch (UnknownHostException e)
         {

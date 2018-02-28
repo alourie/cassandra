@@ -24,7 +24,7 @@ import com.google.common.base.Objects;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 
 /**
@@ -36,10 +36,10 @@ public class NodePair
 {
     public static IVersionedSerializer<NodePair> serializer = new NodePairSerializer();
 
-    public final InetAddressAndPort endpoint1;
-    public final InetAddressAndPort endpoint2;
+    public final VirtualEndpoint endpoint1;
+    public final VirtualEndpoint endpoint2;
 
-    public NodePair(InetAddressAndPort endpoint1, InetAddressAndPort endpoint2)
+    public NodePair(VirtualEndpoint endpoint1, VirtualEndpoint endpoint2)
     {
         this.endpoint1 = endpoint1;
         this.endpoint2 = endpoint2;
@@ -77,8 +77,8 @@ public class NodePair
 
         public NodePair deserialize(DataInputPlus in, int version) throws IOException
         {
-            InetAddressAndPort ep1 = CompactEndpointSerializationHelper.instance.deserialize(in, version);
-            InetAddressAndPort ep2 = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint ep1 = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint ep2 = CompactEndpointSerializationHelper.instance.deserialize(in, version);
             return new NodePair(ep1, ep2);
         }
 

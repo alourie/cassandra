@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
@@ -63,7 +63,7 @@ public class LocalSessionInfo
         m.put(LAST_UPDATE, Integer.toString(session.getLastUpdate()));
         m.put(COORDINATOR, session.coordinator.toString());
         m.put(PARTICIPANTS, Joiner.on(',').join(Iterables.transform(session.participants.stream().map(peer -> peer.address).collect(Collectors.toList()), InetAddress::getHostAddress)));
-        m.put(PARTICIPANTS_WP, Joiner.on(',').join(Iterables.transform(session.participants, InetAddressAndPort::toString)));
+        m.put(PARTICIPANTS_WP, Joiner.on(',').join(Iterables.transform(session.participants, VirtualEndpoint::toString)));
         m.put(TABLES, Joiner.on(',').join(Iterables.transform(session.tableIds, LocalSessionInfo::tableString)));
 
         return m;

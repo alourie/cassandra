@@ -19,11 +19,10 @@ package org.apache.cassandra.metrics;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.async.OutboundMessagingPool;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
-
-import org.apache.cassandra.locator.InetAddressAndPort;
 
 /**
  * Metrics for internode connections.
@@ -65,7 +64,7 @@ public class ConnectionMetrics
      *
      * @param ip IP address to use for metrics label
      */
-    public ConnectionMetrics(InetAddressAndPort ip, final OutboundMessagingPool messagingPool)
+    public ConnectionMetrics(VirtualEndpoint ip, final OutboundMessagingPool messagingPool)
     {
         // ipv6 addresses will contain colons, which are invalid in a JMX ObjectName
         address = ip.toString().replace(':', '.');

@@ -20,7 +20,7 @@ package org.apache.cassandra.net;
 import com.google.common.base.Predicate;
 
 import org.apache.cassandra.gms.FailureDetector;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * implementors of IAsyncCallback need to make sure that any public methods
@@ -30,9 +30,9 @@ import org.apache.cassandra.locator.InetAddressAndPort;
  */
 public interface IAsyncCallback<T>
 {
-    Predicate<InetAddressAndPort> isAlive = new Predicate<InetAddressAndPort>()
+    Predicate<VirtualEndpoint> isAlive = new Predicate<VirtualEndpoint>()
     {
-        public boolean apply(InetAddressAndPort endpoint)
+        public boolean apply(VirtualEndpoint endpoint)
         {
             return FailureDetector.instance.isAlive(endpoint);
         }

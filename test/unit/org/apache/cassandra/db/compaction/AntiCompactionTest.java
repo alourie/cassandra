@@ -34,7 +34,7 @@ import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.db.*;
@@ -96,7 +96,7 @@ public class AntiCompactionTest
     private void registerParentRepairSession(UUID sessionID, Collection<Range<Token>> ranges, long repairedAt, UUID pendingRepair) throws IOException
     {
         ActiveRepairService.instance.registerParentRepairSession(sessionID,
-                                                                 InetAddressAndPort.getByName("10.0.0.1"),
+                                                                 VirtualEndpoint.getByName("10.0.0.1"),
                                                                  Lists.newArrayList(cfs), ranges,
                                                                  pendingRepair != null || repairedAt != UNREPAIRED_SSTABLE,
                                                                  repairedAt, true, PreviewKind.NONE);

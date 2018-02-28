@@ -20,7 +20,7 @@ package org.apache.cassandra;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.YamlConfigurationLoader;
 import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 import java.io.File;
 import java.net.Inet6Address;
@@ -65,7 +65,7 @@ public class OffsetAwareConfigurationLoader extends YamlConfigurationLoader
             StringBuilder sb = new StringBuilder();
             try
             {
-                InetAddressAndPort address = InetAddressAndPort.getByName(host.trim());
+                VirtualEndpoint address = VirtualEndpoint.getByName(host.trim());
                 if (address.address instanceof Inet6Address)
                 {
                      sb.append('[').append(address.address.getHostAddress()).append(']');

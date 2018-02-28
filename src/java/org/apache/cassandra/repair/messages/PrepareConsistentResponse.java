@@ -24,17 +24,17 @@ import java.util.UUID;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.utils.UUIDSerializer;
 
 public class PrepareConsistentResponse extends RepairMessage
 {
     public final UUID parentSession;
-    public final InetAddressAndPort participant;
+    public final VirtualEndpoint participant;
     public final boolean success;
 
-    public PrepareConsistentResponse(UUID parentSession, InetAddressAndPort participant, boolean success)
+    public PrepareConsistentResponse(UUID parentSession, VirtualEndpoint participant, boolean success)
     {
         super(Type.CONSISTENT_RESPONSE, null);
         assert parentSession != null;

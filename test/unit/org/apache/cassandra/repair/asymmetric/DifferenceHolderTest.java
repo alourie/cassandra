@@ -23,13 +23,13 @@ import java.util.Iterator;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.repair.TreeResponse;
 import org.apache.cassandra.utils.MerkleTree;
 import org.apache.cassandra.utils.MerkleTrees;
@@ -43,8 +43,8 @@ public class DifferenceHolderTest
     @Test
     public void testFromEmptyMerkleTrees() throws UnknownHostException
     {
-        InetAddressAndPort a1 = InetAddressAndPort.getByName("127.0.0.1");
-        InetAddressAndPort a2 = InetAddressAndPort.getByName("127.0.0.2");
+        VirtualEndpoint a1 = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint a2 = VirtualEndpoint.getByName("127.0.0.2");
 
         MerkleTrees mt1 = new MerkleTrees(Murmur3Partitioner.instance);
         MerkleTrees mt2 = new MerkleTrees(Murmur3Partitioner.instance);
@@ -64,8 +64,8 @@ public class DifferenceHolderTest
         IPartitioner partitioner = Murmur3Partitioner.instance;
         Range<Token> fullRange = new Range<>(partitioner.getMinimumToken(), partitioner.getMinimumToken());
         int maxsize = 16;
-        InetAddressAndPort a1 = InetAddressAndPort.getByName("127.0.0.1");
-        InetAddressAndPort a2 = InetAddressAndPort.getByName("127.0.0.2");
+        VirtualEndpoint a1 = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint a2 = VirtualEndpoint.getByName("127.0.0.2");
         // merkle tree building stolen from MerkleTreesTest:
         MerkleTrees mt1 = new MerkleTrees(partitioner);
         MerkleTrees mt2 = new MerkleTrees(partitioner);

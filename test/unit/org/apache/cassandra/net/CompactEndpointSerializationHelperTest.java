@@ -18,13 +18,15 @@
 
 package org.apache.cassandra.net;
 
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.UUID;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
 import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataOutputBuffer;
-import org.apache.cassandra.locator.InetAddressAndPort;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,8 +36,8 @@ public class CompactEndpointSerializationHelperTest
     @Test
     public void testRoundtrip() throws Exception
     {
-        InetAddressAndPort ipv4 = InetAddressAndPort.getByName("127.0.0.1:42");
-        InetAddressAndPort ipv6 = InetAddressAndPort.getByName("[2001:db8:0:0:0:ff00:42:8329]:42");
+        VirtualEndpoint ipv4 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0.1"), 42, UUID.randomUUID());
+        VirtualEndpoint ipv6 = VirtualEndpoint.getByName("[2001:db8:0:0:0:ff00:42:8329]:42");
 
         testAddress(ipv4, MessagingService.VERSION_30);
         testAddress(ipv6, MessagingService.VERSION_30);
@@ -43,7 +45,7 @@ public class CompactEndpointSerializationHelperTest
         testAddress(ipv6, MessagingService.current_version);
     }
 
-    private void testAddress(InetAddressAndPort address, int version) throws Exception
+    private void testAddress(VirtualEndpoint address, int version) throws Exception
     {
         ByteBuffer out;
         try (DataOutputBuffer dob = new DataOutputBuffer())
@@ -53,7 +55,7 @@ public class CompactEndpointSerializationHelperTest
         }
         assertEquals(out.remaining(), CompactEndpointSerializationHelper.instance.serializedSize(address, version));
 
-        InetAddressAndPort roundtripped;
+        VirtualEndpoint roundtripped;
         try (DataInputBuffer dib = new DataInputBuffer(out, false))
         {
             roundtripped = CompactEndpointSerializationHelper.instance.deserialize(dib, version);

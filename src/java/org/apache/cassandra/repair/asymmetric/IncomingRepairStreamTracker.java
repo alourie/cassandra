@@ -23,12 +23,12 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
 
 /**
  * Tracks incoming streams for a single host
@@ -60,7 +60,7 @@ public class IncomingRepairStreamTracker
      * @param range the range we need to stream from streamFromNode
      * @param streamFromNode the node we should stream from
      */
-    public void addIncomingRangeFrom(Range<Token> range, InetAddressAndPort streamFromNode)
+    public void addIncomingRangeFrom(Range<Token> range, VirtualEndpoint streamFromNode)
     {
         logger.trace("adding incoming range {} from {}", range, streamFromNode);
         Set<Range<Token>> newInput = RangeDenormalizer.denormalize(range, incoming);

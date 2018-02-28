@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.cassandra.exceptions.RequestFailureReason;
 import org.apache.cassandra.exceptions.WriteFailureException;
 import org.apache.cassandra.exceptions.WriteTimeoutException;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.MessageIn;
 
 public class BatchlogResponseHandler<T> extends AbstractWriteResponseHandler<T>
@@ -59,7 +59,7 @@ public class BatchlogResponseHandler<T> extends AbstractWriteResponseHandler<T>
         return wrapped.isLatencyForSnitch();
     }
 
-    public void onFailure(InetAddressAndPort from, RequestFailureReason failureReason)
+    public void onFailure(VirtualEndpoint from, RequestFailureReason failureReason)
     {
         wrapped.onFailure(from, failureReason);
     }
@@ -84,7 +84,7 @@ public class BatchlogResponseHandler<T> extends AbstractWriteResponseHandler<T>
         return wrapped.totalEndpoints();
     }
 
-    protected boolean waitingFor(InetAddressAndPort from)
+    protected boolean waitingFor(VirtualEndpoint from)
     {
         return wrapped.waitingFor(from);
     }

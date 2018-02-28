@@ -23,7 +23,7 @@ import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 
 /**
@@ -34,18 +34,18 @@ public class GossipDigest implements Comparable<GossipDigest>
 {
     public static final IVersionedSerializer<GossipDigest> serializer = new GossipDigestSerializer();
 
-    final InetAddressAndPort endpoint;
+    final VirtualEndpoint endpoint;
     final int generation;
     final int maxVersion;
 
-    GossipDigest(InetAddressAndPort ep, int gen, int version)
+    GossipDigest(VirtualEndpoint ep, int gen, int version)
     {
         endpoint = ep;
         generation = gen;
         maxVersion = version;
     }
 
-    InetAddressAndPort getEndpoint()
+    VirtualEndpoint getEndpoint()
     {
         return endpoint;
     }
@@ -90,7 +90,7 @@ class GossipDigestSerializer implements IVersionedSerializer<GossipDigest>
 
     public GossipDigest deserialize(DataInputPlus in, int version) throws IOException
     {
-        InetAddressAndPort endpoint = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+        VirtualEndpoint endpoint = CompactEndpointSerializationHelper.instance.deserialize(in, version);
         int generation = in.readInt();
         int maxVersion = in.readInt();
         return new GossipDigest(endpoint, generation, maxVersion);

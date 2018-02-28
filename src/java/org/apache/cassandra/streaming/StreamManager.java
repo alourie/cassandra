@@ -32,9 +32,9 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.RateLimiter;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.streaming.management.StreamEventJMXNotifier;
 import org.apache.cassandra.streaming.management.StreamStateCompositeData;
 
@@ -55,7 +55,7 @@ public class StreamManager implements StreamManagerMBean
      *
      * @return StreamRateLimiter with rate limit set based on peer location.
      */
-    public static StreamRateLimiter getRateLimiter(InetAddressAndPort peer)
+    public static StreamRateLimiter getRateLimiter(VirtualEndpoint peer)
     {
         return new StreamRateLimiter(peer);
     }
@@ -67,7 +67,7 @@ public class StreamManager implements StreamManagerMBean
         private static final RateLimiter interDCLimiter = RateLimiter.create(Double.MAX_VALUE);
         private final boolean isLocalDC;
 
-        public StreamRateLimiter(InetAddressAndPort peer)
+        public StreamRateLimiter(VirtualEndpoint peer)
         {
             double throughput = DatabaseDescriptor.getStreamThroughputOutboundMegabitsPerSec() * BYTES_PER_MEGABIT;
             mayUpdateThroughput(throughput, limiter);
@@ -176,7 +176,7 @@ public class StreamManager implements StreamManagerMBean
         return notifier.getNotificationInfo();
     }
 
-    public StreamSession findSession(InetAddressAndPort peer, UUID planId, int sessionIndex)
+    public StreamSession findSession(VirtualEndpoint peer, UUID planId, int sessionIndex)
     {
         StreamSession session = findSession(initiatedStreams, peer, planId, sessionIndex);
         if (session !=  null)
@@ -185,7 +185,7 @@ public class StreamManager implements StreamManagerMBean
         return findSession(receivingStreams, peer, planId, sessionIndex);
     }
 
-    private StreamSession findSession(Map<UUID, StreamResultFuture> streams, InetAddressAndPort peer, UUID planId, int sessionIndex)
+    private StreamSession findSession(Map<UUID, StreamResultFuture> streams, VirtualEndpoint peer, UUID planId, int sessionIndex)
     {
         StreamResultFuture streamResultFuture = streams.get(planId);
         if (streamResultFuture == null)

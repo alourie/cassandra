@@ -19,7 +19,6 @@
 package org.apache.cassandra.repair.consistent;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
@@ -47,6 +46,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,13 +55,10 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.db.marshal.UTF8Type;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.schema.SchemaConstants;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.cql3.UntypedResultSet;
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.SystemKeyspace;
-import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.dht.IPartitioner;
@@ -81,8 +78,6 @@ import org.apache.cassandra.repair.messages.PrepareConsistentResponse;
 import org.apache.cassandra.repair.messages.RepairMessage;
 import org.apache.cassandra.repair.messages.StatusRequest;
 import org.apache.cassandra.repair.messages.StatusResponse;
-import org.apache.cassandra.schema.Schema;
-import org.apache.cassandra.schema.SchemaConstants;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.service.StorageService;
@@ -148,13 +143,13 @@ public class LocalSessions
     }
 
     @VisibleForTesting
-    protected InetAddressAndPort getBroadcastAddressAndPort()
+    protected VirtualEndpoint getBroadcastAddressAndPort()
     {
         return FBUtilities.getBroadcastAddressAndPort();
     }
 
     @VisibleForTesting
-    protected boolean isAlive(InetAddressAndPort address)
+    protected boolean isAlive(VirtualEndpoint address)
     {
         return FailureDetector.instance.isAlive(address);
     }
@@ -189,7 +184,7 @@ public class LocalSessions
                                     sessionID, session.coordinator);
 
         setStateAndSave(session, FAILED);
-        for (InetAddressAndPort participant : session.participants)
+        for (VirtualEndpoint participant : session.participants)
         {
             if (!participant.equals(getBroadcastAddressAndPort()))
                 sendMessage(participant, new FailSession(sessionID));
@@ -373,7 +368,7 @@ public class LocalSessions
         LocalSession.Builder builder = LocalSession.builder();
         builder.withState(ConsistentSession.State.valueOf(row.getInt("state")));
         builder.withSessionID(row.getUUID("parent_id"));
-        InetAddressAndPort coordinator = InetAddressAndPort.getByAddressOverrideDefaults(
+        VirtualEndpoint coordinator = VirtualEndpoint.getByAddressOverrideDefaults(
             row.getInetAddress("coordinator"),
             row.getInt("coordinator_port"));
         builder.withCoordinator(coordinator);
@@ -387,7 +382,7 @@ public class LocalSessions
                                                              {
                                                                  try
                                                                  {
-                                                                     return InetAddressAndPort.getByName(participant);
+                                                                     return VirtualEndpoint.getByName(participant);
                                                                  }
                                                                  catch (UnknownHostException e)
                                                                  {
@@ -466,7 +461,7 @@ public class LocalSessions
     }
 
     @VisibleForTesting
-    LocalSession createSessionUnsafe(UUID sessionId, ActiveRepairService.ParentRepairSession prs, Set<InetAddressAndPort> peers)
+    LocalSession createSessionUnsafe(UUID sessionId, ActiveRepairService.ParentRepairSession prs, Set<VirtualEndpoint> peers)
     {
         LocalSession.Builder builder = LocalSession.builder();
         builder.withState(ConsistentSession.State.PREPARING);
@@ -490,7 +485,7 @@ public class LocalSessions
         return ActiveRepairService.instance.getParentRepairSession(sessionID);
     }
 
-    protected void sendMessage(InetAddressAndPort destination, RepairMessage message)
+    protected void sendMessage(VirtualEndpoint destination, RepairMessage message)
     {
         logger.trace("sending {} to {}", message, destination);
         MessageOut<RepairMessage> messageOut = new MessageOut<RepairMessage>(MessagingService.Verb.REPAIR_MESSAGE, message, RepairMessage.serializer);
@@ -562,12 +557,12 @@ public class LocalSessions
      * successfully. If the pending anti compaction fails, a failure message is sent to the coordinator,
      * cancelling the session.
      */
-    public void handlePrepareMessage(InetAddressAndPort from, PrepareConsistentRequest request)
+    public void handlePrepareMessage(VirtualEndpoint from, PrepareConsistentRequest request)
     {
         logger.trace("received {} from {}", request, from);
         UUID sessionID = request.parentSession;
-        InetAddressAndPort coordinator = request.coordinator;
-        Set<InetAddressAndPort> peers = request.participants;
+        VirtualEndpoint coordinator = request.coordinator;
+        Set<VirtualEndpoint> peers = request.participants;
 
         ActiveRepairService.ParentRepairSession parentSession;
         try
@@ -630,7 +625,7 @@ public class LocalSessions
         }
     }
 
-    public void handleFinalizeProposeMessage(InetAddressAndPort from, FinalizePropose propose)
+    public void handleFinalizeProposeMessage(VirtualEndpoint from, FinalizePropose propose)
     {
         logger.trace("received {} from {}", propose, from);
         UUID sessionID = propose.sessionID;
@@ -685,7 +680,7 @@ public class LocalSessions
      * as part of the compaction process, and avoids having to worry about in progress compactions interfering with the
      * promotion.
      */
-    public void handleFinalizeCommitMessage(InetAddressAndPort from, FinalizeCommit commit)
+    public void handleFinalizeCommitMessage(VirtualEndpoint from, FinalizeCommit commit)
     {
         logger.trace("received {} from {}", commit, from);
         UUID sessionID = commit.sessionID;
@@ -700,7 +695,7 @@ public class LocalSessions
         logger.info("Finalized local repair session {}", sessionID);
     }
 
-    public void handleFailSessionMessage(InetAddressAndPort from, FailSession msg)
+    public void handleFailSessionMessage(VirtualEndpoint from, FailSession msg)
     {
         logger.trace("received {} from {}", msg, from);
         failSession(msg.sessionID, false);
@@ -710,7 +705,7 @@ public class LocalSessions
     {
         logger.debug("Attempting to learn the outcome of unfinished local incremental repair session {}", session.sessionID);
         StatusRequest request = new StatusRequest(session.sessionID);
-        for (InetAddressAndPort participant : session.participants)
+        for (VirtualEndpoint participant : session.participants)
         {
             if (!getBroadcastAddressAndPort().equals(participant) && isAlive(participant))
             {
@@ -719,7 +714,7 @@ public class LocalSessions
         }
     }
 
-    public void handleStatusRequest(InetAddressAndPort from, StatusRequest request)
+    public void handleStatusRequest(VirtualEndpoint from, StatusRequest request)
     {
         logger.trace("received {} from {}", request, from);
         UUID sessionID = request.sessionID;
@@ -736,7 +731,7 @@ public class LocalSessions
        }
     }
 
-    public void handleStatusResponse(InetAddressAndPort from, StatusResponse response)
+    public void handleStatusResponse(VirtualEndpoint from, StatusResponse response)
     {
         logger.trace("received {} from {}", response, from);
         UUID sessionID = response.sessionID;

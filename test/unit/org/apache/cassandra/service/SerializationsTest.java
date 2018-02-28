@@ -19,6 +19,7 @@
 package org.apache.cassandra.service;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.google.common.collect.Lists;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,7 +42,7 @@ import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.util.DataInputPlus.DataInputStreamPlus;
 import org.apache.cassandra.io.util.DataOutputStreamPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.net.CompactEndpointSerializationHelperTest;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.repair.NodePair;
 import org.apache.cassandra.repair.RepairJobDesc;
@@ -182,9 +184,9 @@ public class SerializationsTest extends AbstractSerializationsTester
 
     private void testSyncRequestWrite() throws IOException
     {
-        InetAddressAndPort local = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.1", PORT);
-        InetAddressAndPort src = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.2", PORT);
-        InetAddressAndPort dest = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.3", PORT);
+        VirtualEndpoint local = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.1", PORT);
+        VirtualEndpoint src = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.2", PORT);
+        VirtualEndpoint dest = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.3", PORT);
 
         SyncRequest message = new SyncRequest(DESC, local, src, dest, Collections.singleton(FULL_RANGE), PreviewKind.NONE);
         testRepairMessageWrite("service.SyncRequest.bin", message);
@@ -196,9 +198,9 @@ public class SerializationsTest extends AbstractSerializationsTester
         if (EXECUTE_WRITES)
             testSyncRequestWrite();
 
-        InetAddressAndPort local = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.1", PORT);
-        InetAddressAndPort src = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.2", PORT);
-        InetAddressAndPort dest = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.3", PORT);
+        VirtualEndpoint local = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.1", PORT);
+        VirtualEndpoint src = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.2", PORT);
+        VirtualEndpoint dest = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.3", PORT);
 
         try (DataInputStreamPlus in = getInput("service.SyncRequest.bin"))
         {
@@ -216,8 +218,8 @@ public class SerializationsTest extends AbstractSerializationsTester
 
     private void testSyncCompleteWrite() throws IOException
     {
-        InetAddressAndPort src = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.2", PORT);
-        InetAddressAndPort dest = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.3", PORT);
+        VirtualEndpoint src = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.2", PORT);
+        VirtualEndpoint dest = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.3", PORT);
         // sync success
         List<SessionSummary> summaries = new ArrayList<>();
         summaries.add(new SessionSummary(src, dest,
@@ -237,8 +239,8 @@ public class SerializationsTest extends AbstractSerializationsTester
         if (EXECUTE_WRITES)
             testSyncCompleteWrite();
 
-        InetAddressAndPort src = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.2", PORT);
-        InetAddressAndPort dest = InetAddressAndPort.getByNameOverrideDefaults("127.0.0.3", PORT);
+        VirtualEndpoint src = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.2", PORT);
+        VirtualEndpoint dest = VirtualEndpoint.getByNameOverrideDefaults("127.0.0.3", PORT);
         NodePair nodes = new NodePair(src, dest);
 
         try (DataInputStreamPlus in = getInput("service.SyncComplete.bin"))

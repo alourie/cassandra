@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -37,7 +38,6 @@ import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.WriteType;
 import org.apache.cassandra.locator.IEndpointSnitch;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.schema.KeyspaceParams;
@@ -49,7 +49,7 @@ public class WriteResponseHandlerTest
 {
     static Keyspace ks;
     static ColumnFamilyStore cfs;
-    static List<InetAddressAndPort> targets;
+    static List<VirtualEndpoint> targets;
 
     @BeforeClass
     public static void setUpClass() throws Throwable
@@ -58,17 +58,17 @@ public class WriteResponseHandlerTest
         // Register peers with expected DC for NetworkTopologyStrategy.
         TokenMetadata metadata = StorageService.instance.getTokenMetadata();
         metadata.clearUnsafe();
-        metadata.updateHostId(UUID.randomUUID(), InetAddressAndPort.getByName("127.1.0.255"));
-        metadata.updateHostId(UUID.randomUUID(), InetAddressAndPort.getByName("127.2.0.255"));
+        metadata.updateHostId(UUID.randomUUID(), VirtualEndpoint.getByName("127.1.0.255"));
+        metadata.updateHostId(UUID.randomUUID(), VirtualEndpoint.getByName("127.2.0.255"));
 
         DatabaseDescriptor.setEndpointSnitch(new IEndpointSnitch()
         {
-            public String getRack(InetAddressAndPort endpoint)
+            public String getRack(VirtualEndpoint endpoint)
             {
                 return null;
             }
 
-            public String getDatacenter(InetAddressAndPort endpoint)
+            public String getDatacenter(VirtualEndpoint endpoint)
             {
                 byte[] address = endpoint.address.getAddress();
                 if (address[1] == 1)
@@ -77,17 +77,17 @@ public class WriteResponseHandlerTest
                     return "datacenter2";
             }
 
-            public List<InetAddressAndPort> getSortedListByProximity(InetAddressAndPort address, Collection<InetAddressAndPort> unsortedAddress)
+            public List<VirtualEndpoint> getSortedListByProximity(VirtualEndpoint address, Collection<VirtualEndpoint> unsortedAddress)
             {
                 return null;
             }
 
-            public void sortByProximity(InetAddressAndPort address, List<InetAddressAndPort> addresses)
+            public void sortByProximity(VirtualEndpoint address, List<VirtualEndpoint> addresses)
             {
 
             }
 
-            public int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2)
+            public int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2)
             {
                 return 0;
             }
@@ -97,7 +97,7 @@ public class WriteResponseHandlerTest
 
             }
 
-            public boolean isWorthMergingForRangeQuery(List<InetAddressAndPort> merged, List<InetAddressAndPort> l1, List<InetAddressAndPort> l2)
+            public boolean isWorthMergingForRangeQuery(List<VirtualEndpoint> merged, List<VirtualEndpoint> l1, List<VirtualEndpoint> l2)
             {
                 return false;
             }
@@ -106,8 +106,8 @@ public class WriteResponseHandlerTest
         SchemaLoader.createKeyspace("Foo", KeyspaceParams.nts("datacenter1", 3, "datacenter2", 3), SchemaLoader.standardCFMD("Foo", "Bar"));
         ks = Keyspace.open("Foo");
         cfs = ks.getColumnFamilyStore("Bar");
-        targets = ImmutableList.of(InetAddressAndPort.getByName("127.1.0.255"), InetAddressAndPort.getByName("127.1.0.254"), InetAddressAndPort.getByName("127.1.0.253"),
-                                   InetAddressAndPort.getByName("127.2.0.255"), InetAddressAndPort.getByName("127.2.0.254"), InetAddressAndPort.getByName("127.2.0.253"));
+        targets = ImmutableList.of(VirtualEndpoint.getByName("127.1.0.255"), VirtualEndpoint.getByName("127.1.0.254"), VirtualEndpoint.getByName("127.1.0.253"),
+                                   VirtualEndpoint.getByName("127.2.0.255"), VirtualEndpoint.getByName("127.2.0.254"), VirtualEndpoint.getByName("127.2.0.253"));
     }
 
     @Before

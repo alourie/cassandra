@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableFutureTask;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -42,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.statements.CreateTableStatement;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
@@ -148,7 +148,7 @@ public class PendingAntiCompactionTest
 
         // create a session so the anti compaction can fine it
         UUID sessionID = UUIDGen.getTimeUUID();
-        ActiveRepairService.instance.registerParentRepairSession(sessionID, InetAddressAndPort.getLocalHost(), Lists.newArrayList(cfs), ranges, true, 1, true, PreviewKind.NONE);
+        ActiveRepairService.instance.registerParentRepairSession(sessionID, VirtualEndpoint.getLocalHost(), Lists.newArrayList(cfs), ranges, true, 1, true, PreviewKind.NONE);
 
         PendingAntiCompaction pac;
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -352,7 +352,7 @@ public class PendingAntiCompactionTest
         PendingAntiCompaction.AcquireResult result = acquisitionCallable.call();
         UUID sessionID = UUIDGen.getTimeUUID();
         ActiveRepairService.instance.registerParentRepairSession(sessionID,
-                                                                 InetAddressAndPort.getByName("127.0.0.1"),
+                                                                 VirtualEndpoint.getByName("127.0.0.1"),
                                                                  Lists.newArrayList(cfs),
                                                                  FULL_RANGE,
                                                                  true,0,

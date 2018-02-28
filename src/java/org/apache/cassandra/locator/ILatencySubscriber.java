@@ -19,5 +19,5 @@ package org.apache.cassandra.locator;
 
 public interface ILatencySubscriber
 {
-    public void receiveTiming(InetAddressAndPort address, long latency);
+    public void receiveTiming(VirtualEndpoint address, long latency);
 }

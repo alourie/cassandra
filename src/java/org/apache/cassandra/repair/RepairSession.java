@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +34,6 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.gms.*;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.streaming.PreviewKind;
 import org.apache.cassandra.streaming.SessionSummary;
 import org.apache.cassandra.tracing.Tracing;
@@ -95,14 +95,14 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
 
     /** Range to repair */
     public final Collection<Range<Token>> ranges;
-    public final Set<InetAddressAndPort> endpoints;
+    public final Set<VirtualEndpoint> endpoints;
     public final boolean isIncremental;
     public final PreviewKind previewKind;
 
     private final AtomicBoolean isFailed = new AtomicBoolean(false);
 
     // Each validation task waits response from replica in validating ConcurrentMap (keyed by CF name and endpoint address)
-    private final ConcurrentMap<Pair<RepairJobDesc, InetAddressAndPort>, ValidationTask> validating = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Pair<RepairJobDesc, VirtualEndpoint>, ValidationTask> validating = new ConcurrentHashMap<>();
     // Remote syncing jobs wait response in syncingTasks map
     private final ConcurrentMap<Pair<RepairJobDesc, NodePair>, CompletableRemoteSyncTask> syncingTasks = new ConcurrentHashMap<>();
 
@@ -130,7 +130,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
                          Collection<Range<Token>> ranges,
                          String keyspace,
                          RepairParallelism parallelismDegree,
-                         Set<InetAddressAndPort> endpoints,
+                         Set<VirtualEndpoint> endpoints,
                          boolean isIncremental,
                          boolean pullRepair,
                          boolean force,
@@ -152,8 +152,8 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         if (force)
         {
             logger.debug("force flag set, removing dead endpoints");
-            final Set<InetAddressAndPort> removeCandidates = new HashSet<>();
-            for (final InetAddressAndPort endpoint : endpoints)
+            final Set<VirtualEndpoint> removeCandidates = new HashSet<>();
+            for (final VirtualEndpoint endpoint : endpoints)
             {
                 if (!FailureDetector.instance.isAlive(endpoint))
                 {
@@ -189,7 +189,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         return ranges;
     }
 
-    public void waitForValidation(Pair<RepairJobDesc, InetAddressAndPort> key, ValidationTask task)
+    public void waitForValidation(Pair<RepairJobDesc, VirtualEndpoint> key, ValidationTask task)
     {
         validating.put(key, task);
     }
@@ -207,7 +207,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
      * @param endpoint endpoint that sent merkle tree
      * @param trees calculated merkle trees, or null if validation failed
      */
-    public void validationComplete(RepairJobDesc desc, InetAddressAndPort endpoint, MerkleTrees trees)
+    public void validationComplete(RepairJobDesc desc, VirtualEndpoint endpoint, MerkleTrees trees)
     {
         ValidationTask task = validating.remove(Pair.create(desc, endpoint));
         if (task == null)
@@ -246,7 +246,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
     {
         StringBuilder sb = new StringBuilder();
         sb.append(FBUtilities.getBroadcastAddressAndPort());
-        for (InetAddressAndPort ep : endpoints)
+        for (VirtualEndpoint ep : endpoints)
             sb.append(", ").append(ep);
         return sb.toString();
     }
@@ -285,7 +285,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         }
 
         // Checking all nodes are live
-        for (InetAddressAndPort endpoint : endpoints)
+        for (VirtualEndpoint endpoint : endpoints)
         {
             if (!FailureDetector.instance.isAlive(endpoint) && !skippedReplicas)
             {
@@ -353,23 +353,23 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         terminate();
     }
 
-    public void onJoin(InetAddressAndPort endpoint, EndpointState epState) {}
-    public void beforeChange(InetAddressAndPort endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue) {}
-    public void onChange(InetAddressAndPort endpoint, ApplicationState state, VersionedValue value) {}
-    public void onAlive(InetAddressAndPort endpoint, EndpointState state) {}
-    public void onDead(InetAddressAndPort endpoint, EndpointState state) {}
+    public void onJoin(VirtualEndpoint endpoint, EndpointState epState) {}
+    public void beforeChange(VirtualEndpoint endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue) {}
+    public void onChange(VirtualEndpoint endpoint, ApplicationState state, VersionedValue value) {}
+    public void onAlive(VirtualEndpoint endpoint, EndpointState state) {}
+    public void onDead(VirtualEndpoint endpoint, EndpointState state) {}
 
-    public void onRemove(InetAddressAndPort endpoint)
+    public void onRemove(VirtualEndpoint endpoint)
     {
         convict(endpoint, Double.MAX_VALUE);
     }
 
-    public void onRestart(InetAddressAndPort endpoint, EndpointState epState)
+    public void onRestart(VirtualEndpoint endpoint, EndpointState epState)
     {
         convict(endpoint, Double.MAX_VALUE);
     }
 
-    public void convict(InetAddressAndPort endpoint, double phi)
+    public void convict(VirtualEndpoint endpoint, double phi)
     {
         if (!endpoints.contains(endpoint))
             return;

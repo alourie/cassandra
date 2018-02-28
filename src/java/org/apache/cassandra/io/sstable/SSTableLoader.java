@@ -18,13 +18,12 @@
 package org.apache.cassandra.io.sstable;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.db.Directories;
@@ -49,10 +48,10 @@ public class SSTableLoader implements StreamEventHandler
     private final Client client;
     private final int connectionsPerHost;
     private final OutputHandler outputHandler;
-    private final Set<InetAddressAndPort> failedHosts = new HashSet<>();
+    private final Set<VirtualEndpoint> failedHosts = new HashSet<>();
 
     private final List<SSTableReader> sstables = new ArrayList<>();
-    private final Multimap<InetAddressAndPort, StreamSession.SSTableStreamingSections> streamingDetails = HashMultimap.create();
+    private final Multimap<VirtualEndpoint, StreamSession.SSTableStreamingSections> streamingDetails = HashMultimap.create();
 
     public SSTableLoader(File directory, Client client, OutputHandler outputHandler)
     {
@@ -69,7 +68,7 @@ public class SSTableLoader implements StreamEventHandler
     }
 
     @SuppressWarnings("resource")
-    protected Collection<SSTableReader> openSSTables(final Map<InetAddressAndPort, Collection<Range<Token>>> ranges)
+    protected Collection<SSTableReader> openSSTables(final Map<VirtualEndpoint, Collection<Range<Token>>> ranges)
     {
         outputHandler.output("Opening sstables and calculating sections to stream");
 
@@ -123,9 +122,9 @@ public class SSTableLoader implements StreamEventHandler
 
                                               // calculate the sstable sections to stream as well as the estimated number of
                                               // keys per host
-                                              for (Map.Entry<InetAddressAndPort, Collection<Range<Token>>> entry : ranges.entrySet())
+                                              for (Map.Entry<VirtualEndpoint, Collection<Range<Token>>> entry : ranges.entrySet())
                                               {
-                                                  InetAddressAndPort endpoint = entry.getKey();
+                                                  VirtualEndpoint endpoint = entry.getKey();
                                                   Collection<Range<Token>> tokenRanges = entry.getValue();
 
                                                   List<Pair<Long, Long>> sstableSections = sstable.getPositionsForRanges(tokenRanges);
@@ -152,17 +151,17 @@ public class SSTableLoader implements StreamEventHandler
 
     public StreamResultFuture stream()
     {
-        return stream(Collections.<InetAddressAndPort>emptySet());
+        return stream(Collections.<VirtualEndpoint>emptySet());
     }
 
-    public StreamResultFuture stream(Set<InetAddressAndPort> toIgnore, StreamEventHandler... listeners)
+    public StreamResultFuture stream(Set<VirtualEndpoint> toIgnore, StreamEventHandler... listeners)
     {
         client.init(keyspace);
         outputHandler.output("Established connection to initial hosts");
 
         StreamPlan plan = new StreamPlan(StreamOperation.BULK_LOAD, connectionsPerHost, false, false, null, PreviewKind.NONE).connectionFactory(client.getConnectionFactory());
 
-        Map<InetAddressAndPort, Collection<Range<Token>>> endpointToRanges = client.getEndpointToRangesMap();
+        Map<VirtualEndpoint, Collection<Range<Token>>> endpointToRanges = client.getEndpointToRangesMap();
         openSSTables(endpointToRanges);
         if (sstables.isEmpty())
         {
@@ -172,9 +171,9 @@ public class SSTableLoader implements StreamEventHandler
 
         outputHandler.output(String.format("Streaming relevant part of %s to %s", names(sstables), endpointToRanges.keySet()));
 
-        for (Map.Entry<InetAddressAndPort, Collection<Range<Token>>> entry : endpointToRanges.entrySet())
+        for (Map.Entry<VirtualEndpoint, Collection<Range<Token>>> entry : endpointToRanges.entrySet())
         {
-            InetAddressAndPort remote = entry.getKey();
+            VirtualEndpoint remote = entry.getKey();
             if (toIgnore.contains(remote))
                 continue;
 
@@ -231,14 +230,14 @@ public class SSTableLoader implements StreamEventHandler
         return builder.toString();
     }
 
-    public Set<InetAddressAndPort> getFailedHosts()
+    public Set<VirtualEndpoint> getFailedHosts()
     {
         return failedHosts;
     }
 
     public static abstract class Client
     {
-        private final Map<InetAddressAndPort, Collection<Range<Token>>> endpointToRanges = new HashMap<>();
+        private final Map<VirtualEndpoint, Collection<Range<Token>>> endpointToRanges = new HashMap<>();
 
         /**
          * Initialize the client.
@@ -280,12 +279,12 @@ public class SSTableLoader implements StreamEventHandler
             throw new RuntimeException();
         }
 
-        public Map<InetAddressAndPort, Collection<Range<Token>>> getEndpointToRangesMap()
+        public Map<VirtualEndpoint, Collection<Range<Token>>> getEndpointToRangesMap()
         {
             return endpointToRanges;
         }
 
-        protected void addRangeForEndpoint(Range<Token> range, InetAddressAndPort endpoint)
+        protected void addRangeForEndpoint(Range<Token> range, VirtualEndpoint endpoint)
         {
             Collection<Range<Token>> ranges = endpointToRanges.get(endpoint);
             if (ranges == null)

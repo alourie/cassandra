@@ -73,9 +73,9 @@ public abstract class AbstractReplicationStrategy
         // lazy-initialize keyspace itself since we don't create them until after the replication strategies
     }
 
-    private final Map<Token, ArrayList<InetAddressAndPort>> cachedEndpoints = new NonBlockingHashMap<Token, ArrayList<InetAddressAndPort>>();
+    private final Map<Token, ArrayList<VirtualEndpoint>> cachedEndpoints = new NonBlockingHashMap<Token, ArrayList<VirtualEndpoint>>();
 
-    public ArrayList<InetAddressAndPort> getCachedEndpoints(Token t)
+    public ArrayList<VirtualEndpoint> getCachedEndpoints(Token t)
     {
         long lastVersion = tokenMetadata.getRingVersion();
 
@@ -102,21 +102,21 @@ public abstract class AbstractReplicationStrategy
      * @param searchPosition the position the natural endpoints are requested for
      * @return a copy of the natural endpoints for the given token
      */
-    public ArrayList<InetAddressAndPort> getNaturalEndpoints(RingPosition searchPosition)
+    public ArrayList<VirtualEndpoint> getNaturalEndpoints(RingPosition searchPosition)
     {
         Token searchToken = searchPosition.getToken();
         Token keyToken = TokenMetadata.firstToken(tokenMetadata.sortedTokens(), searchToken);
-        ArrayList<InetAddressAndPort> endpoints = getCachedEndpoints(keyToken);
+        ArrayList<VirtualEndpoint> endpoints = getCachedEndpoints(keyToken);
         if (endpoints == null)
         {
             TokenMetadata tm = tokenMetadata.cachedOnlyTokenMap();
             // if our cache got invalidated, it's possible there is a new token to account for too
             keyToken = TokenMetadata.firstToken(tm.sortedTokens(), searchToken);
-            endpoints = new ArrayList<InetAddressAndPort>(calculateNaturalEndpoints(searchToken, tm));
+            endpoints = new ArrayList<VirtualEndpoint>(calculateNaturalEndpoints(searchToken, tm));
             cachedEndpoints.put(keyToken, endpoints);
         }
 
-        return new ArrayList<InetAddressAndPort>(endpoints);
+        return new ArrayList<VirtualEndpoint>(endpoints);
     }
 
     /**
@@ -127,10 +127,10 @@ public abstract class AbstractReplicationStrategy
      * @param searchToken the token the natural endpoints are requested for
      * @return a copy of the natural endpoints for the given token
      */
-    public abstract List<InetAddressAndPort> calculateNaturalEndpoints(Token searchToken, TokenMetadata tokenMetadata);
+    public abstract List<VirtualEndpoint> calculateNaturalEndpoints(Token searchToken, TokenMetadata tokenMetadata);
 
-    public <T> AbstractWriteResponseHandler<T> getWriteResponseHandler(Collection<InetAddressAndPort> naturalEndpoints,
-                                                                       Collection<InetAddressAndPort> pendingEndpoints,
+    public <T> AbstractWriteResponseHandler<T> getWriteResponseHandler(Collection<VirtualEndpoint> naturalEndpoints,
+                                                                       Collection<VirtualEndpoint> pendingEndpoints,
                                                                        ConsistencyLevel consistency_level,
                                                                        Runnable callback,
                                                                        WriteType writeType,
@@ -139,8 +139,8 @@ public abstract class AbstractReplicationStrategy
         return getWriteResponseHandler(naturalEndpoints, pendingEndpoints, consistency_level, callback, writeType, queryStartNanoTime, DatabaseDescriptor.getIdealConsistencyLevel());
     }
 
-    public <T> AbstractWriteResponseHandler<T> getWriteResponseHandler(Collection<InetAddressAndPort> naturalEndpoints,
-                                                                       Collection<InetAddressAndPort> pendingEndpoints,
+    public <T> AbstractWriteResponseHandler<T> getWriteResponseHandler(Collection<VirtualEndpoint> naturalEndpoints,
+                                                                       Collection<VirtualEndpoint> pendingEndpoints,
                                                                        ConsistencyLevel consistency_level,
                                                                        Runnable callback,
                                                                        WriteType writeType,
@@ -210,14 +210,14 @@ public abstract class AbstractReplicationStrategy
      * (fixing this would probably require merging tokenmetadata into replicationstrategy,
      * so we could cache/invalidate cleanly.)
      */
-    public Multimap<InetAddressAndPort, Range<Token>> getAddressRanges(TokenMetadata metadata)
+    public Multimap<VirtualEndpoint, Range<Token>> getAddressRanges(TokenMetadata metadata)
     {
-        Multimap<InetAddressAndPort, Range<Token>> map = HashMultimap.create();
+        Multimap<VirtualEndpoint, Range<Token>> map = HashMultimap.create();
 
         for (Token token : metadata.sortedTokens())
         {
             Range<Token> range = metadata.getPrimaryRangeFor(token);
-            for (InetAddressAndPort ep : calculateNaturalEndpoints(token, metadata))
+            for (VirtualEndpoint ep : calculateNaturalEndpoints(token, metadata))
             {
                 map.put(ep, range);
             }
@@ -226,14 +226,14 @@ public abstract class AbstractReplicationStrategy
         return map;
     }
 
-    public Multimap<Range<Token>, InetAddressAndPort> getRangeAddresses(TokenMetadata metadata)
+    public Multimap<Range<Token>, VirtualEndpoint> getRangeAddresses(TokenMetadata metadata)
     {
-        Multimap<Range<Token>, InetAddressAndPort> map = HashMultimap.create();
+        Multimap<Range<Token>, VirtualEndpoint> map = HashMultimap.create();
 
         for (Token token : metadata.sortedTokens())
         {
             Range<Token> range = metadata.getPrimaryRangeFor(token);
-            for (InetAddressAndPort ep : calculateNaturalEndpoints(token, metadata))
+            for (VirtualEndpoint ep : calculateNaturalEndpoints(token, metadata))
             {
                 map.put(range, ep);
             }
@@ -242,17 +242,17 @@ public abstract class AbstractReplicationStrategy
         return map;
     }
 
-    public Multimap<InetAddressAndPort, Range<Token>> getAddressRanges()
+    public Multimap<VirtualEndpoint, Range<Token>> getAddressRanges()
     {
         return getAddressRanges(tokenMetadata.cloneOnlyTokenMap());
     }
 
-    public Collection<Range<Token>> getPendingAddressRanges(TokenMetadata metadata, Token pendingToken, InetAddressAndPort pendingAddress)
+    public Collection<Range<Token>> getPendingAddressRanges(TokenMetadata metadata, Token pendingToken, VirtualEndpoint pendingAddress)
     {
         return getPendingAddressRanges(metadata, Arrays.asList(pendingToken), pendingAddress);
     }
 
-    public Collection<Range<Token>> getPendingAddressRanges(TokenMetadata metadata, Collection<Token> pendingTokens, InetAddressAndPort pendingAddress)
+    public Collection<Range<Token>> getPendingAddressRanges(TokenMetadata metadata, Collection<Token> pendingTokens, VirtualEndpoint pendingAddress)
     {
         TokenMetadata temp = metadata.cloneOnlyTokenMap();
         temp.updateNormalTokens(pendingTokens, pendingAddress);

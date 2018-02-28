@@ -41,11 +41,11 @@ public class SimpleStrategy extends AbstractReplicationStrategy
         super(keyspaceName, tokenMetadata, snitch, configOptions);
     }
 
-    public List<InetAddressAndPort> calculateNaturalEndpoints(Token token, TokenMetadata metadata)
+    public List<VirtualEndpoint> calculateNaturalEndpoints(Token token, TokenMetadata metadata)
     {
         int replicas = getReplicationFactor();
         ArrayList<Token> tokens = metadata.sortedTokens();
-        List<InetAddressAndPort> endpoints = new ArrayList<InetAddressAndPort>(replicas);
+        List<VirtualEndpoint> endpoints = new ArrayList<VirtualEndpoint>(replicas);
 
         if (tokens.isEmpty())
             return endpoints;
@@ -54,7 +54,7 @@ public class SimpleStrategy extends AbstractReplicationStrategy
         Iterator<Token> iter = TokenMetadata.ringIterator(tokens, token, false);
         while (endpoints.size() < replicas && iter.hasNext())
         {
-            InetAddressAndPort ep = metadata.getEndpoint(iter.next());
+            VirtualEndpoint ep = metadata.getEndpoint(iter.next());
             if (!endpoints.contains(ep))
                 endpoints.add(ep);
         }

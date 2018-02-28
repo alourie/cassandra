@@ -39,7 +39,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.VersionedValue.VersionedValueFactory;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
@@ -61,9 +61,9 @@ public class RemoveTest
     static IPartitioner oldPartitioner;
     ArrayList<Token> endpointTokens = new ArrayList<Token>();
     ArrayList<Token> keyTokens = new ArrayList<Token>();
-    List<InetAddressAndPort> hosts = new ArrayList<>();
+    List<VirtualEndpoint> hosts = new ArrayList<>();
     List<UUID> hostIds = new ArrayList<UUID>();
-    InetAddressAndPort removalhost;
+    VirtualEndpoint removalhost;
     UUID removalId;
 
     @BeforeClass
@@ -120,7 +120,7 @@ public class RemoveTest
         VersionedValueFactory valueFactory = new VersionedValueFactory(DatabaseDescriptor.getPartitioner());
         Collection<Token> tokens = Collections.singleton(DatabaseDescriptor.getPartitioner().getRandomToken());
 
-        InetAddressAndPort joininghost = hosts.get(4);
+        VirtualEndpoint joininghost = hosts.get(4);
         UUID joiningId = hostIds.get(4);
 
         hosts.remove(joininghost);
@@ -159,7 +159,7 @@ public class RemoveTest
         assertTrue(tmd.isLeaving(removalhost));
         assertEquals(1, tmd.getSizeOfLeavingEndpoints());
 
-        for (InetAddressAndPort host : hosts)
+        for (VirtualEndpoint host : hosts)
         {
             MessageOut msg = new MessageOut(host, MessagingService.Verb.REPLICATION_FINISHED, null, null, Collections.<Object>emptyList());
             MessagingService.instance().sendRR(msg, FBUtilities.getBroadcastAddressAndPort());

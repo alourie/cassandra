@@ -19,11 +19,11 @@ package org.apache.cassandra.streaming;
 
 import java.util.*;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.DebuggableThreadPoolExecutor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.utils.FBUtilities;
 
 /**
@@ -45,7 +45,7 @@ public class StreamCoordinator
                                                                                                                             FBUtilities.getAvailableProcessors());
     private final boolean connectSequentially;
 
-    private Map<InetAddressAndPort, HostStreamingData> peerSessions = new HashMap<>();
+    private Map<VirtualEndpoint, HostStreamingData> peerSessions = new HashMap<>();
     private final int connectionsPerHost;
     private StreamConnectionFactory factory;
     private final boolean keepSSTableLevel;
@@ -150,22 +150,22 @@ public class StreamCoordinator
             logger.debug("Finished connecting all sessions");
     }
 
-    public synchronized Set<InetAddressAndPort> getPeers()
+    public synchronized Set<VirtualEndpoint> getPeers()
     {
         return new HashSet<>(peerSessions.keySet());
     }
 
-    public synchronized StreamSession getOrCreateNextSession(InetAddressAndPort peer, InetAddressAndPort connecting)
+    public synchronized StreamSession getOrCreateNextSession(VirtualEndpoint peer, VirtualEndpoint connecting)
     {
         return getOrCreateHostData(peer).getOrCreateNextSession(peer, connecting);
     }
 
-    public synchronized StreamSession getOrCreateSessionById(InetAddressAndPort peer, int id, InetAddressAndPort connecting)
+    public synchronized StreamSession getOrCreateSessionById(VirtualEndpoint peer, int id, VirtualEndpoint connecting)
     {
         return getOrCreateHostData(peer).getOrCreateSessionById(peer, id, connecting);
     }
 
-    public StreamSession getSessionById(InetAddressAndPort peer, int id)
+    public StreamSession getSessionById(VirtualEndpoint peer, int id)
     {
         return getHostData(peer).getSessionById(id);
     }
@@ -191,7 +191,7 @@ public class StreamCoordinator
         return result;
     }
 
-    public synchronized void transferFiles(InetAddressAndPort to, Collection<StreamSession.SSTableStreamingSections> sstableDetails)
+    public synchronized void transferFiles(VirtualEndpoint to, Collection<StreamSession.SSTableStreamingSections> sstableDetails)
     {
         HostStreamingData sessionList = getOrCreateHostData(to);
 
@@ -239,7 +239,7 @@ public class StreamCoordinator
         return result;
     }
 
-    private HostStreamingData getHostData(InetAddressAndPort peer)
+    private HostStreamingData getHostData(VirtualEndpoint peer)
     {
         HostStreamingData data = peerSessions.get(peer);
         if (data == null)
@@ -247,7 +247,7 @@ public class StreamCoordinator
         return data;
     }
 
-    private HostStreamingData getOrCreateHostData(InetAddressAndPort peer)
+    private HostStreamingData getOrCreateHostData(VirtualEndpoint peer)
     {
         HostStreamingData data = peerSessions.get(peer);
         if (data == null)
@@ -297,7 +297,7 @@ public class StreamCoordinator
             return false;
         }
 
-        public StreamSession getOrCreateNextSession(InetAddressAndPort peer, InetAddressAndPort connecting)
+        public StreamSession getOrCreateNextSession(VirtualEndpoint peer, VirtualEndpoint connecting)
         {
             // create
             if (streamSessions.size() < connectionsPerHost)
@@ -329,7 +329,7 @@ public class StreamCoordinator
             return Collections.unmodifiableCollection(streamSessions.values());
         }
 
-        public StreamSession getOrCreateSessionById(InetAddressAndPort peer, int id, InetAddressAndPort connecting)
+        public StreamSession getOrCreateSessionById(VirtualEndpoint peer, int id, VirtualEndpoint connecting)
         {
             StreamSession session = streamSessions.get(id);
             if (session == null)

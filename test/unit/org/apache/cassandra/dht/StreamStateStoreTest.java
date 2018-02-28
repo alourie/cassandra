@@ -23,7 +23,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.streaming.DefaultConnectionFactory;
 import org.apache.cassandra.streaming.PreviewKind;
 import org.apache.cassandra.streaming.StreamEvent;
@@ -50,7 +50,7 @@ public class StreamStateStoreTest
         Token.TokenFactory factory = p.getTokenFactory();
         Range<Token> range = new Range<>(factory.fromString("0"), factory.fromString("100"));
 
-        InetAddressAndPort local = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint local = FBUtilities.getBroadcastAddressAndPort();
         StreamSession session = new StreamSession(local, local, new DefaultConnectionFactory(), 0, true, null, PreviewKind.NONE);
         session.addStreamRequest("keyspace1", Collections.singleton(range), Collections.singleton("cf"));
 

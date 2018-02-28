@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<InetAddressAndPort>>>
+public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<VirtualEndpoint>>>
 {
     private static final Logger logger = LoggerFactory.getLogger(PendingRangeMaps.class);
 
@@ -38,7 +38,7 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
      * First two are for non-wrap-around ranges, and the last two are for wrap-around ranges.
      */
     // ascendingMap will sort the ranges by the ascending order of right token
-    final NavigableMap<Range<Token>, List<InetAddressAndPort>> ascendingMap;
+    final NavigableMap<Range<Token>, List<VirtualEndpoint>> ascendingMap;
     /**
      * sorting end ascending, if ends are same, sorting begin descending, so that token (end, end) will
      * come before (begin, end] with the same end, and (begin, end) will be selected in the tailMap.
@@ -57,7 +57,7 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         };
 
     // ascendingMap will sort the ranges by the descending order of left token
-    final NavigableMap<Range<Token>, List<InetAddressAndPort>> descendingMap;
+    final NavigableMap<Range<Token>, List<VirtualEndpoint>> descendingMap;
     /**
      * sorting begin descending, if begins are same, sorting end descending, so that token (begin, begin) will
      * come after (begin, end] with the same begin, and (begin, end) won't be selected in the tailMap.
@@ -77,7 +77,7 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         };
 
     // these two maps are for warp around ranges.
-    final NavigableMap<Range<Token>, List<InetAddressAndPort>> ascendingMapForWrapAround;
+    final NavigableMap<Range<Token>, List<VirtualEndpoint>> ascendingMapForWrapAround;
     /**
      * for wrap around range (begin, end], which begin > end.
      * Sorting end ascending, if ends are same, sorting begin ascending,
@@ -97,7 +97,7 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         }
     };
 
-    final NavigableMap<Range<Token>, List<InetAddressAndPort>> descendingMapForWrapAround;
+    final NavigableMap<Range<Token>, List<VirtualEndpoint>> descendingMapForWrapAround;
     /**
      * for wrap around ranges, which begin > end.
      * Sorting end ascending, so that token (begin, begin) will come after (begin, end] with the same begin,
@@ -117,18 +117,18 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
 
     public PendingRangeMaps()
     {
-        this.ascendingMap = new TreeMap<Range<Token>, List<InetAddressAndPort>>(ascendingComparator);
-        this.descendingMap = new TreeMap<Range<Token>, List<InetAddressAndPort>>(descendingComparator);
-        this.ascendingMapForWrapAround = new TreeMap<Range<Token>, List<InetAddressAndPort>>(ascendingComparatorForWrapAround);
-        this.descendingMapForWrapAround = new TreeMap<Range<Token>, List<InetAddressAndPort>>(descendingComparatorForWrapAround);
+        this.ascendingMap = new TreeMap<Range<Token>, List<VirtualEndpoint>>(ascendingComparator);
+        this.descendingMap = new TreeMap<Range<Token>, List<VirtualEndpoint>>(descendingComparator);
+        this.ascendingMapForWrapAround = new TreeMap<Range<Token>, List<VirtualEndpoint>>(ascendingComparatorForWrapAround);
+        this.descendingMapForWrapAround = new TreeMap<Range<Token>, List<VirtualEndpoint>>(descendingComparatorForWrapAround);
     }
 
     static final void addToMap(Range<Token> range,
-                               InetAddressAndPort address,
-                               NavigableMap<Range<Token>, List<InetAddressAndPort>> ascendingMap,
-                               NavigableMap<Range<Token>, List<InetAddressAndPort>> descendingMap)
+                               VirtualEndpoint address,
+                               NavigableMap<Range<Token>, List<VirtualEndpoint>> ascendingMap,
+                               NavigableMap<Range<Token>, List<VirtualEndpoint>> descendingMap)
     {
-        List<InetAddressAndPort> addresses = ascendingMap.get(range);
+        List<VirtualEndpoint> addresses = ascendingMap.get(range);
         if (addresses == null)
         {
             addresses = new ArrayList<>(1);
@@ -138,7 +138,7 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         addresses.add(address);
     }
 
-    public void addPendingRange(Range<Token> range, InetAddressAndPort address)
+    public void addPendingRange(Range<Token> range, VirtualEndpoint address)
     {
         if (Range.isWrapAround(range.left, range.right))
         {
@@ -150,14 +150,14 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         }
     }
 
-    static final void addIntersections(Set<InetAddressAndPort> endpointsToAdd,
-                                       NavigableMap<Range<Token>, List<InetAddressAndPort>> smallerMap,
-                                       NavigableMap<Range<Token>, List<InetAddressAndPort>> biggerMap)
+    static final void addIntersections(Set<VirtualEndpoint> endpointsToAdd,
+                                       NavigableMap<Range<Token>, List<VirtualEndpoint>> smallerMap,
+                                       NavigableMap<Range<Token>, List<VirtualEndpoint>> biggerMap)
     {
         // find the intersection of two sets
         for (Range<Token> range : smallerMap.keySet())
         {
-            List<InetAddressAndPort> addresses = biggerMap.get(range);
+            List<VirtualEndpoint> addresses = biggerMap.get(range);
             if (addresses != null)
             {
                 endpointsToAdd.addAll(addresses);
@@ -165,15 +165,15 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         }
     }
 
-    public Collection<InetAddressAndPort> pendingEndpointsFor(Token token)
+    public Collection<VirtualEndpoint> pendingEndpointsFor(Token token)
     {
-        Set<InetAddressAndPort> endpoints = new HashSet<>();
+        Set<VirtualEndpoint> endpoints = new HashSet<>();
 
         Range searchRange = new Range(token, token);
 
         // search for non-wrap-around maps
-        NavigableMap<Range<Token>, List<InetAddressAndPort>> ascendingTailMap = ascendingMap.tailMap(searchRange, true);
-        NavigableMap<Range<Token>, List<InetAddressAndPort>> descendingTailMap = descendingMap.tailMap(searchRange, false);
+        NavigableMap<Range<Token>, List<VirtualEndpoint>> ascendingTailMap = ascendingMap.tailMap(searchRange, true);
+        NavigableMap<Range<Token>, List<VirtualEndpoint>> descendingTailMap = descendingMap.tailMap(searchRange, false);
 
         // add intersections of two maps
         if (ascendingTailMap.size() < descendingTailMap.size())
@@ -190,11 +190,11 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
         descendingTailMap = descendingMapForWrapAround.tailMap(searchRange, false);
 
         // add them since they are all necessary.
-        for (Map.Entry<Range<Token>, List<InetAddressAndPort>> entry : ascendingTailMap.entrySet())
+        for (Map.Entry<Range<Token>, List<VirtualEndpoint>> entry : ascendingTailMap.entrySet())
         {
             endpoints.addAll(entry.getValue());
         }
-        for (Map.Entry<Range<Token>, List<InetAddressAndPort>> entry : descendingTailMap.entrySet())
+        for (Map.Entry<Range<Token>, List<VirtualEndpoint>> entry : descendingTailMap.entrySet())
         {
             endpoints.addAll(entry.getValue());
         }
@@ -206,11 +206,11 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
     {
         StringBuilder sb = new StringBuilder();
 
-        for (Map.Entry<Range<Token>, List<InetAddressAndPort>> entry : this)
+        for (Map.Entry<Range<Token>, List<VirtualEndpoint>> entry : this)
         {
             Range<Token> range = entry.getKey();
 
-            for (InetAddressAndPort address : entry.getValue())
+            for (VirtualEndpoint address : entry.getValue())
             {
                 sb.append(address).append(':').append(range);
                 sb.append(System.getProperty("line.separator"));
@@ -221,7 +221,7 @@ public class PendingRangeMaps implements Iterable<Map.Entry<Range<Token>, List<I
     }
 
     @Override
-    public Iterator<Map.Entry<Range<Token>, List<InetAddressAndPort>>> iterator()
+    public Iterator<Map.Entry<Range<Token>, List<VirtualEndpoint>>> iterator()
     {
         return Iterators.concat(ascendingMap.entrySet().iterator(), ascendingMapForWrapAround.entrySet().iterator());
     }

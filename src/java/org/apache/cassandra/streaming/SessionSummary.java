@@ -27,19 +27,19 @@ import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 
 public class SessionSummary
 {
-    public final InetAddressAndPort coordinator;
-    public final InetAddressAndPort peer;
+    public final VirtualEndpoint coordinator;
+    public final VirtualEndpoint peer;
     /** Immutable collection of receiving summaries */
     public final Collection<StreamSummary> receivingSummaries;
     /** Immutable collection of sending summaries*/
     public final Collection<StreamSummary> sendingSummaries;
 
-    public SessionSummary(InetAddressAndPort coordinator, InetAddressAndPort peer,
+    public SessionSummary(VirtualEndpoint coordinator, VirtualEndpoint peer,
                           Collection<StreamSummary> receivingSummaries,
                           Collection<StreamSummary> sendingSummaries)
     {
@@ -98,8 +98,8 @@ public class SessionSummary
 
         public SessionSummary deserialize(DataInputPlus in, int version) throws IOException
         {
-            InetAddressAndPort coordinator = CompactEndpointSerializationHelper.instance.deserialize(in, version);
-            InetAddressAndPort peer = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint coordinator = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint peer = CompactEndpointSerializationHelper.instance.deserialize(in, version);
 
             int numRcvd = in.readInt();
             List<StreamSummary> receivingSummaries = new ArrayList<>(numRcvd);

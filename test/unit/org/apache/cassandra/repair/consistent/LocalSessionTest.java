@@ -33,6 +33,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -41,7 +42,6 @@ import org.junit.Test;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.cql3.statements.CreateTableStatement;
 import org.apache.cassandra.repair.AbstractRepairTest;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaConstants;
@@ -106,20 +106,20 @@ public class LocalSessionTest extends AbstractRepairTest
         }
     }
 
-    private static void assertNoMessagesSent(InstrumentedLocalSessions sessions, InetAddressAndPort to)
+    private static void assertNoMessagesSent(InstrumentedLocalSessions sessions, VirtualEndpoint to)
     {
         Assert.assertNull(sessions.sentMessages.get(to));
     }
 
-    private static void assertMessagesSent(InstrumentedLocalSessions sessions, InetAddressAndPort to, RepairMessage... expected)
+    private static void assertMessagesSent(InstrumentedLocalSessions sessions, VirtualEndpoint to, RepairMessage... expected)
     {
         Assert.assertEquals(Lists.newArrayList(expected), sessions.sentMessages.get(to));
     }
 
     static class InstrumentedLocalSessions extends LocalSessions
     {
-        Map<InetAddressAndPort, List<RepairMessage>> sentMessages = new HashMap<>();
-        protected void sendMessage(InetAddressAndPort destination, RepairMessage message)
+        Map<VirtualEndpoint, List<RepairMessage>> sentMessages = new HashMap<>();
+        protected void sendMessage(VirtualEndpoint destination, RepairMessage message)
         {
             if (!sentMessages.containsKey(destination))
             {
@@ -160,12 +160,12 @@ public class LocalSessionTest extends AbstractRepairTest
         }
 
         @Override
-        protected InetAddressAndPort getBroadcastAddressAndPort()
+        protected VirtualEndpoint getBroadcastAddressAndPort()
         {
             return PARTICIPANT1;
         }
 
-        protected boolean isAlive(InetAddressAndPort address)
+        protected boolean isAlive(VirtualEndpoint address)
         {
             return true;
         }

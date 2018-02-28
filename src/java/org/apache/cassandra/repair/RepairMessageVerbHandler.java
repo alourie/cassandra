@@ -20,6 +20,7 @@ package org.apache.cassandra.repair;
 import java.util.*;
 
 import com.google.common.base.Predicate;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +28,6 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.dht.Bounds;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
@@ -226,7 +226,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
         }
     }
 
-    private void logErrorAndSendFailureResponse(String errorMessage, InetAddressAndPort to, int id)
+    private void logErrorAndSendFailureResponse(String errorMessage, VirtualEndpoint to, int id)
     {
         logger.error(errorMessage);
         MessageOut reply = new MessageOut(MessagingService.Verb.INTERNAL_RESPONSE)

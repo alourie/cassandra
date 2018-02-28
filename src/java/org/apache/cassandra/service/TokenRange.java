@@ -23,7 +23,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.locator.IEndpointSnitch;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * Holds token range informations for the sake of {@link StorageService#describeRing}.
@@ -54,11 +54,11 @@ public class TokenRange
         return tokenFactory.toString(tk);
     }
 
-    public static TokenRange create(Token.TokenFactory tokenFactory, Range<Token> range, List<InetAddressAndPort> endpoints, boolean withPorts)
+    public static TokenRange create(Token.TokenFactory tokenFactory, Range<Token> range, List<VirtualEndpoint> endpoints, boolean withPorts)
     {
         List<EndpointDetails> details = new ArrayList<>(endpoints.size());
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
-        for (InetAddressAndPort ep : endpoints)
+        for (VirtualEndpoint ep : endpoints)
             details.add(new EndpointDetails(ep,
                                             StorageService.instance.getNativeaddress(ep, withPorts),
                                             snitch.getDatacenter(ep),
@@ -107,12 +107,12 @@ public class TokenRange
 
     public static class EndpointDetails
     {
-        public final InetAddressAndPort host;
+        public final VirtualEndpoint host;
         public final String nativeAddress;
         public final String datacenter;
         public final String rack;
 
-        private EndpointDetails(InetAddressAndPort host, String nativeAddress, String datacenter, String rack)
+        private EndpointDetails(VirtualEndpoint host, String nativeAddress, String datacenter, String rack)
         {
             // dc and rack can be null, but host shouldn't
             assert host != null;

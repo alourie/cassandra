@@ -38,20 +38,20 @@ public class InetAddressAndPortTest
     public void getByNameIPv4Test() throws Exception
     {
         //Negative port
-        shouldThrow(() -> InetAddressAndPort.getByName("127.0.0.1:-1"), IllegalArgumentException.class);
+        shouldThrow(() -> VirtualEndpoint.getByName("127.0.0.1:-1"), IllegalArgumentException.class);
         //Too large port
-        shouldThrow(() -> InetAddressAndPort.getByName("127.0.0.1:65536"), IllegalArgumentException.class);
+        shouldThrow(() -> VirtualEndpoint.getByName("127.0.0.1:65536"), IllegalArgumentException.class);
 
         //bad address, caught by InetAddress
-        shouldThrow(() -> InetAddressAndPort.getByName("127.0.0.1.0"), UnknownHostException.class);
+        shouldThrow(() -> VirtualEndpoint.getByName("127.0.0.1.0"), UnknownHostException.class);
 
         //Test default port
-        InetAddressAndPort address = InetAddressAndPort.getByName("127.0.0.1");
+        VirtualEndpoint address = VirtualEndpoint.getByName("127.0.0.1");
         assertEquals(InetAddress.getByName("127.0.0.1"), address.address);
-        assertEquals(InetAddressAndPort.defaultPort, address.port);
+        assertEquals(VirtualEndpoint.defaultPort, address.port);
 
         //Test overriding default port
-        address = InetAddressAndPort.getByName("127.0.0.1:42");
+        address = VirtualEndpoint.getByName("127.0.0.1:42");
         assertEquals(InetAddress.getByName("127.0.0.1"), address.address);
         assertEquals(42, address.port);
     }
@@ -60,20 +60,20 @@ public class InetAddressAndPortTest
     public void getByNameIPv6Test() throws Exception
     {
         //Negative port
-        shouldThrow(() -> InetAddressAndPort.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:-1"), IllegalArgumentException.class);
+        shouldThrow(() -> VirtualEndpoint.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:-1"), IllegalArgumentException.class);
         //Too large port
-        shouldThrow(() -> InetAddressAndPort.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:65536"), IllegalArgumentException.class);
+        shouldThrow(() -> VirtualEndpoint.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:65536"), IllegalArgumentException.class);
 
         //bad address, caught by InetAddress
-        shouldThrow(() -> InetAddressAndPort.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329:8329"), UnknownHostException.class);
+        shouldThrow(() -> VirtualEndpoint.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329:8329"), UnknownHostException.class);
 
         //Test default port
-        InetAddressAndPort address = InetAddressAndPort.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329");
+        VirtualEndpoint address = VirtualEndpoint.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329");
         assertEquals(InetAddress.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329"), address.address);
-        assertEquals(InetAddressAndPort.defaultPort, address.port);
+        assertEquals(VirtualEndpoint.defaultPort, address.port);
 
         //Test overriding default port
-        address = InetAddressAndPort.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:42");
+        address = VirtualEndpoint.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:42");
         assertEquals(InetAddress.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329"), address.address);
         assertEquals(42, address.port);
     }
@@ -81,11 +81,11 @@ public class InetAddressAndPortTest
     @Test
     public void compareAndEqualsAndHashCodeTest() throws Exception
     {
-        InetAddressAndPort address1 = InetAddressAndPort.getByName("127.0.0.1:42");
-        InetAddressAndPort address4 = InetAddressAndPort.getByName("127.0.0.1:43");
-        InetAddressAndPort address5 = InetAddressAndPort.getByName("127.0.0.1:41");
-        InetAddressAndPort address6 = InetAddressAndPort.getByName("127.0.0.2:42");
-        InetAddressAndPort address7 = InetAddressAndPort.getByName("127.0.0.0:42");
+        VirtualEndpoint address1 = VirtualEndpoint.getByName("127.0.0.1:42");
+        VirtualEndpoint address4 = VirtualEndpoint.getByName("127.0.0.1:43");
+        VirtualEndpoint address5 = VirtualEndpoint.getByName("127.0.0.1:41");
+        VirtualEndpoint address6 = VirtualEndpoint.getByName("127.0.0.2:42");
+        VirtualEndpoint address7 = VirtualEndpoint.getByName("127.0.0.0:42");
 
         assertEquals(0, address1.compareTo(address1));
         assertEquals(-1, address1.compareTo(address4));
@@ -95,20 +95,20 @@ public class InetAddressAndPortTest
 
         assertEquals(address1, address1);
         assertEquals(address1.hashCode(), address1.hashCode());
-        assertEquals(address1, InetAddressAndPort.getByName("127.0.0.1:42"));
-        assertEquals(address1.hashCode(), InetAddressAndPort.getByName("127.0.0.1:42").hashCode());
-        assertEquals(address1, InetAddressAndPort.getByNameOverrideDefaults("127.0.0.1", 42));
-        assertEquals(address1.hashCode(), InetAddressAndPort.getByNameOverrideDefaults("127.0.0.1", 42).hashCode());
-        int originalPort = InetAddressAndPort.defaultPort;
-        InetAddressAndPort.initializeDefaultPort(42);
+        assertEquals(address1, VirtualEndpoint.getByName("127.0.0.1:42"));
+        assertEquals(address1.hashCode(), VirtualEndpoint.getByName("127.0.0.1:42").hashCode());
+        assertEquals(address1, VirtualEndpoint.getByNameOverrideDefaults("127.0.0.1", 42));
+        assertEquals(address1.hashCode(), VirtualEndpoint.getByNameOverrideDefaults("127.0.0.1", 42).hashCode());
+        int originalPort = VirtualEndpoint.defaultPort;
+        VirtualEndpoint.initializeDefaultPort(42);
         try
         {
-            assertEquals(address1, InetAddressAndPort.getByName("127.0.0.1"));
-            assertEquals(address1.hashCode(), InetAddressAndPort.getByName("127.0.0.1").hashCode());
+            assertEquals(address1, VirtualEndpoint.getByName("127.0.0.1"));
+            assertEquals(address1.hashCode(), VirtualEndpoint.getByName("127.0.0.1").hashCode());
         }
         finally
         {
-            InetAddressAndPort.initializeDefaultPort(originalPort);
+            VirtualEndpoint.initializeDefaultPort(originalPort);
         }
         assertTrue(!address1.equals(address4));
         assertTrue(!address1.equals(address5));
@@ -121,8 +121,8 @@ public class InetAddressAndPortTest
     {
         String ipv4 = "127.0.0.1:42";
         String ipv6 = "[2001:db8:0:0:0:ff00:42:8329]:42";
-        assertEquals(ipv4, InetAddressAndPort.getByName(ipv4).toString());
-        assertEquals(ipv6, InetAddressAndPort.getByName(ipv6).toString());
+        assertEquals(ipv4, VirtualEndpoint.getByName(ipv4).toString());
+        assertEquals(ipv6, VirtualEndpoint.getByName(ipv6).toString());
     }
 
 

@@ -32,7 +32,7 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.commons.lang3.StringUtils;
@@ -140,7 +140,7 @@ public class VersionedValue implements Comparable<VersionedValue>
             return new VersionedValue(versionString(VersionedValue.STATUS_BOOTSTRAPPING_REPLACE, oldNode.getHostAddress()));
         }
 
-        public VersionedValue bootReplacingWithPort(InetAddressAndPort oldNode)
+        public VersionedValue bootReplacingWithPort(VirtualEndpoint oldNode)
         {
             return new VersionedValue(versionString(VersionedValue.STATUS_BOOTSTRAPPING_REPLACE, oldNode.toString()));
         }
@@ -255,7 +255,7 @@ public class VersionedValue implements Comparable<VersionedValue>
             return new VersionedValue(endpoint.getHostAddress());
         }
 
-        public VersionedValue nativeaddressAndPort(InetAddressAndPort address)
+        public VersionedValue nativeaddressAndPort(VirtualEndpoint address)
         {
             return new VersionedValue(address.toString());
         }
@@ -275,7 +275,7 @@ public class VersionedValue implements Comparable<VersionedValue>
             return new VersionedValue(private_ip);
         }
 
-        public VersionedValue internalAddressAndPort(InetAddressAndPort address)
+        public VersionedValue internalAddressAndPort(VirtualEndpoint address)
         {
             return new VersionedValue(address.toString());
         }

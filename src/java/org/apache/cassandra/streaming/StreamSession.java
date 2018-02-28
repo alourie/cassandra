@@ -17,8 +17,6 @@
  */
 package org.apache.cassandra.streaming;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -38,6 +36,7 @@ import org.apache.cassandra.db.lifecycle.SSTableSet;
 import org.apache.cassandra.db.lifecycle.View;
 import org.apache.cassandra.io.sstable.SSTableMultiWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +48,6 @@ import org.apache.cassandra.db.PartitionPosition;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.gms.*;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.metrics.StreamingMetrics;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.async.OutboundConnectionIdentifier;
@@ -143,14 +141,14 @@ public class StreamSession implements IEndpointStateChangeSubscriber
     /**
      * Streaming endpoint.
      *
-     * Each {@code StreamSession} is identified by this InetAddressAndPort which is broadcast address of the node streaming.
+     * Each {@code StreamSession} is identified by this VirtualEndpoint which is broadcast address of the node streaming.
      */
-    public final InetAddressAndPort peer;
+    public final VirtualEndpoint peer;
 
     private final int index;
 
     /** Actual connecting address. Can be the same as {@linkplain #peer}. */
-    public final InetAddressAndPort connecting;
+    public final VirtualEndpoint connecting;
 
     // should not be null when session is started
     private StreamResultFuture streamResult;
@@ -192,14 +190,14 @@ public class StreamSession implements IEndpointStateChangeSubscriber
      *  @param peer Address of streaming peer
      * @param connecting Actual connecting address
      */
-    public StreamSession(InetAddressAndPort peer, InetAddressAndPort connecting, StreamConnectionFactory factory, int index, boolean keepSSTableLevel, UUID pendingRepair, PreviewKind previewKind)
+    public StreamSession(VirtualEndpoint peer, VirtualEndpoint connecting, StreamConnectionFactory factory, int index, boolean keepSSTableLevel, UUID pendingRepair, PreviewKind previewKind)
     {
         this.peer = peer;
         this.connecting = connecting;
         this.index = index;
 
-        OutboundConnectionIdentifier id = OutboundConnectionIdentifier.stream(InetAddressAndPort.getByAddressOverrideDefaults(FBUtilities.getBroadcastAddressAndPort().address, 0),
-                                                                              InetAddressAndPort.getByAddressOverrideDefaults(connecting.address, MessagingService.instance().portFor(connecting)));
+        OutboundConnectionIdentifier id = OutboundConnectionIdentifier.stream(VirtualEndpoint.getByAddressOverrideDefaults(FBUtilities.getBroadcastAddressAndPort().address, 0),
+                                                                              VirtualEndpoint.getByAddressOverrideDefaults(connecting.address, MessagingService.instance().portFor(connecting)));
         this.messageSender = new NettyStreamingMessageSender(this, id, factory, StreamMessage.CURRENT_VERSION, previewKind.isPreview());
         this.metrics = StreamingMetrics.get(connecting);
         this.keepSSTableLevel = keepSSTableLevel;
@@ -785,19 +783,19 @@ public class StreamSession implements IEndpointStateChangeSubscriber
         maybeCompleted();
     }
 
-    public void onJoin(InetAddressAndPort endpoint, EndpointState epState) {}
-    public void beforeChange(InetAddressAndPort endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue) {}
-    public void onChange(InetAddressAndPort endpoint, ApplicationState state, VersionedValue value) {}
-    public void onAlive(InetAddressAndPort endpoint, EndpointState state) {}
-    public void onDead(InetAddressAndPort endpoint, EndpointState state) {}
+    public void onJoin(VirtualEndpoint endpoint, EndpointState epState) {}
+    public void beforeChange(VirtualEndpoint endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue) {}
+    public void onChange(VirtualEndpoint endpoint, ApplicationState state, VersionedValue value) {}
+    public void onAlive(VirtualEndpoint endpoint, EndpointState state) {}
+    public void onDead(VirtualEndpoint endpoint, EndpointState state) {}
 
-    public void onRemove(InetAddressAndPort endpoint)
+    public void onRemove(VirtualEndpoint endpoint)
     {
         logger.error("[Stream #{}] Session failed because remote peer {} has left.", planId(), peer.toString());
         closeSession(State.FAILED);
     }
 
-    public void onRestart(InetAddressAndPort endpoint, EndpointState epState)
+    public void onRestart(VirtualEndpoint endpoint, EndpointState epState)
     {
         logger.error("[Stream #{}] Session failed because remote peer {} was restarted.", planId(), peer.toString());
         closeSession(State.FAILED);

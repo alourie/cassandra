@@ -18,7 +18,7 @@
 package org.apache.cassandra.net;
 
 import org.apache.cassandra.exceptions.RequestFailureReason;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public interface IAsyncCallbackWithFailure<T> extends IAsyncCallback<T>
 {
@@ -26,5 +26,5 @@ public interface IAsyncCallbackWithFailure<T> extends IAsyncCallback<T>
     /**
      * Called when there is an exception on the remote node or timeout happens
      */
-    void onFailure(InetAddressAndPort from, RequestFailureReason failureReason);
+    void onFailure(VirtualEndpoint from, RequestFailureReason failureReason);
 }

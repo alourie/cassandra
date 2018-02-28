@@ -22,7 +22,7 @@ import java.util.Collection;
 
 import com.google.common.base.Preconditions;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * Contains forward to information until it can be serialized as part of a message using a version
@@ -30,10 +30,10 @@ import org.apache.cassandra.locator.InetAddressAndPort;
  */
 public class ForwardToContainer
 {
-    public final Collection<InetAddressAndPort> targets;
+    public final Collection<VirtualEndpoint> targets;
     public final int[] messageIds;
 
-    public ForwardToContainer(Collection<InetAddressAndPort> targets,
+    public ForwardToContainer(Collection<VirtualEndpoint> targets,
                               int[] messageIds)
     {
         Preconditions.checkArgument(targets.size() == messageIds.length);

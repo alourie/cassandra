@@ -27,7 +27,7 @@ import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public class ForwardToSerializer implements IVersionedSerializer<ForwardToContainer>
 {
@@ -38,7 +38,7 @@ public class ForwardToSerializer implements IVersionedSerializer<ForwardToContai
     public void serialize(ForwardToContainer forwardToContainer, DataOutputPlus out, int version) throws IOException
     {
         out.writeInt(forwardToContainer.targets.size());
-        Iterator<InetAddressAndPort> iter = forwardToContainer.targets.iterator();
+        Iterator<VirtualEndpoint> iter = forwardToContainer.targets.iterator();
         for (int ii = 0; ii < forwardToContainer.messageIds.length; ii++)
         {
             CompactEndpointSerializationHelper.instance.serialize(iter.next(), out, version);
@@ -49,7 +49,7 @@ public class ForwardToSerializer implements IVersionedSerializer<ForwardToContai
     public ForwardToContainer deserialize(DataInputPlus in, int version) throws IOException
     {
         int[] ids = new int[in.readInt()];
-        List<InetAddressAndPort> hosts = new ArrayList<>(ids.length);
+        List<VirtualEndpoint> hosts = new ArrayList<>(ids.length);
         for (int ii = 0; ii < ids.length; ii++)
         {
            hosts.add(CompactEndpointSerializationHelper.instance.deserialize(in, version));
@@ -64,7 +64,7 @@ public class ForwardToSerializer implements IVersionedSerializer<ForwardToContai
         long size = 4 +
                     (4 * forwardToContainer.targets.size());
         //Depending on ipv6 or ipv4 the address size is different.
-        for (InetAddressAndPort forwardTo : forwardToContainer.targets)
+        for (VirtualEndpoint forwardTo : forwardToContainer.targets)
         {
             size += CompactEndpointSerializationHelper.instance.serializedSize(forwardTo, version);
         }

@@ -41,7 +41,7 @@ import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * The goods are here: www.ietf.org/rfc/rfc4122.txt.
@@ -373,7 +373,7 @@ public class UUIDGen
         * instanciation and the UUID generator is used in Stress for instance,
         * where we don't want to require the yaml.
         */
-        Collection<InetAddressAndPort> localAddresses = getAllLocalAddresses();
+        Collection<VirtualEndpoint> localAddresses = getAllLocalAddresses();
         if (localAddresses.isEmpty())
             throw new RuntimeException("Cannot generate the node component of the UUID because cannot retrieve any IP addresses.");
 
@@ -389,11 +389,11 @@ public class UUIDGen
         return node | 0x0000010000000000L;
     }
 
-    private static byte[] hash(Collection<InetAddressAndPort> data)
+    private static byte[] hash(Collection<VirtualEndpoint> data)
     {
         // Identify the host.
         Hasher hasher = Hashing.md5().newHasher();
-        for(InetAddressAndPort addr : data)
+        for(VirtualEndpoint addr : data)
         {
             hasher.putBytes(addr.addressBytes);
             hasher.putInt(addr.port);
@@ -415,9 +415,9 @@ public class UUIDGen
     /**
      * Helper function used exclusively by UUIDGen to create
      **/
-    public static Collection<InetAddressAndPort> getAllLocalAddresses()
+    public static Collection<VirtualEndpoint> getAllLocalAddresses()
     {
-        Set<InetAddressAndPort> localAddresses = new HashSet<>();
+        Set<VirtualEndpoint> localAddresses = new HashSet<>();
         try
         {
             Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
@@ -425,9 +425,9 @@ public class UUIDGen
             {
                 while (nets.hasMoreElements())
                 {
-                    Function<InetAddress, InetAddressAndPort> converter =
-                    address -> InetAddressAndPort.getByAddressOverrideDefaults(address, 0);
-                    List<InetAddressAndPort> addresses =
+                    Function<InetAddress, VirtualEndpoint> converter =
+                    address -> VirtualEndpoint.getByAddressOverrideDefaults(address, 0, null);
+                    List<VirtualEndpoint> addresses =
                     Collections.list(nets.nextElement().getInetAddresses()).stream().map(converter).collect(Collectors.toList());
                     localAddresses.addAll(addresses);
                 }
@@ -440,7 +440,7 @@ public class UUIDGen
         if (DatabaseDescriptor.isDaemonInitialized())
         {
             localAddresses.add(FBUtilities.getBroadcastAddressAndPort());
-            localAddresses.add(FBUtilities.getBroadcastNativeAddressAndPort());
+            localAddresses.add(FBUtilities.getBroadcastNativeEndpoint());
             localAddresses.add(FBUtilities.getLocalAddressAndPort());
         }
         return localAddresses;

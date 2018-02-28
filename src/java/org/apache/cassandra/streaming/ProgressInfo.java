@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 import com.google.common.base.Objects;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * ProgressInfo contains file transfer progress.
@@ -49,14 +49,14 @@ public class ProgressInfo implements Serializable
         }
     }
 
-    public final InetAddressAndPort peer;
+    public final VirtualEndpoint peer;
     public final int sessionIndex;
     public final String fileName;
     public final Direction direction;
     public final long currentBytes;
     public final long totalBytes;
 
-    public ProgressInfo(InetAddressAndPort peer, int sessionIndex, String fileName, Direction direction, long currentBytes, long totalBytes)
+    public ProgressInfo(VirtualEndpoint peer, int sessionIndex, String fileName, Direction direction, long currentBytes, long totalBytes)
     {
         assert totalBytes > 0;
 

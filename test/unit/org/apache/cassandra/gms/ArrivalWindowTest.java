@@ -23,9 +23,9 @@ package org.apache.cassandra.gms;
 
 import static org.junit.Assert.*;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.utils.FBUtilities;
 
 public class ArrivalWindowTest
@@ -35,7 +35,7 @@ public class ArrivalWindowTest
     {
         final ArrivalWindow windowWithNano = new ArrivalWindow(4);
         final long toNano = 1000000L;
-        InetAddressAndPort ep = FBUtilities.getLocalAddressAndPort();
+        VirtualEndpoint ep = FBUtilities.getLocalAddressAndPort();
         windowWithNano.add(111 * toNano, ep);
         windowWithNano.add(222 * toNano, ep);
         windowWithNano.add(333 * toNano, ep);

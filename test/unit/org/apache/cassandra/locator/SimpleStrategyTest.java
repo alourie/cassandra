@@ -97,19 +97,19 @@ public class SimpleStrategyTest
         {
             tmd = new TokenMetadata();
             strategy = getStrategy(keyspaceName, tmd);
-            List<InetAddressAndPort> hosts = new ArrayList<>();
+            List<VirtualEndpoint> hosts = new ArrayList<>();
             for (int i = 0; i < endpointTokens.length; i++)
             {
-                InetAddressAndPort ep = InetAddressAndPort.getByName("127.0.0." + String.valueOf(i + 1));
+                VirtualEndpoint ep = VirtualEndpoint.getByName("127.0.0." + String.valueOf(i + 1));
                 tmd.updateNormalToken(endpointTokens[i], ep);
                 hosts.add(ep);
             }
 
             for (int i = 0; i < keyTokens.length; i++)
             {
-                List<InetAddressAndPort> endpoints = strategy.getNaturalEndpoints(keyTokens[i]);
+                List<VirtualEndpoint> endpoints = strategy.getNaturalEndpoints(keyTokens[i]);
                 assertEquals(strategy.getReplicationFactor(), endpoints.size());
-                List<InetAddressAndPort> correctEndpoints = new ArrayList<>();
+                List<VirtualEndpoint> correctEndpoints = new ArrayList<>();
                 for (int j = 0; j < endpoints.size(); j++)
                     correctEndpoints.add(hosts.get((i + j + 1) % hosts.size()));
                 assertEquals(new HashSet<>(correctEndpoints), new HashSet<>(endpoints));
@@ -134,17 +134,17 @@ public class SimpleStrategyTest
             keyTokens[i] = new BigIntegerToken(String.valueOf(RING_SIZE * 2 * i + RING_SIZE));
         }
 
-        List<InetAddressAndPort> hosts = new ArrayList<>();
+        List<VirtualEndpoint> hosts = new ArrayList<>();
         for (int i = 0; i < endpointTokens.length; i++)
         {
-            InetAddressAndPort ep = InetAddressAndPort.getByName("127.0.0." + String.valueOf(i + 1));
+            VirtualEndpoint ep = VirtualEndpoint.getByName("127.0.0." + String.valueOf(i + 1));
             tmd.updateNormalToken(endpointTokens[i], ep);
             hosts.add(ep);
         }
 
         // bootstrap at the end of the ring
         Token bsToken = new BigIntegerToken(String.valueOf(210));
-        InetAddressAndPort bootstrapEndpoint = InetAddressAndPort.getByName("127.0.0.11");
+        VirtualEndpoint bootstrapEndpoint = VirtualEndpoint.getByName("127.0.0.11");
         tmd.addBootstrapToken(bsToken, bootstrapEndpoint);
 
         AbstractReplicationStrategy strategy = null;
@@ -158,7 +158,7 @@ public class SimpleStrategyTest
 
             for (int i = 0; i < keyTokens.length; i++)
             {
-                Collection<InetAddressAndPort> endpoints = tmd.getWriteEndpoints(keyTokens[i], keyspaceName, strategy.getNaturalEndpoints(keyTokens[i]));
+                Collection<VirtualEndpoint> endpoints = tmd.getWriteEndpoints(keyTokens[i], keyspaceName, strategy.getNaturalEndpoints(keyTokens[i]));
                 assertTrue(endpoints.size() >= replicationFactor);
 
                 for (int j = 0; j < replicationFactor; j++)

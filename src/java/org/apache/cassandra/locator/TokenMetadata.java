@@ -51,12 +51,12 @@ public class TokenMetadata
      * Each Token is associated with exactly one Address, but each Address may have
      * multiple tokens.  Hence, the BiMultiValMap collection.
      */
-    private final BiMultiValMap<Token, InetAddressAndPort> tokenToEndpointMap;
+    private final BiMultiValMap<Token, VirtualEndpoint> tokenToEndpointMap;
 
     /** Maintains endpoint to host ID map of every node in the cluster */
-    private final BiMap<InetAddressAndPort, UUID> endpointToHostIdMap;
+    private final BiMap<VirtualEndpoint, UUID> endpointToHostIdMap;
 
-    // Prior to CASSANDRA-603, we just had <tt>Map<Range, InetAddressAndPort> pendingRanges<tt>,
+    // Prior to CASSANDRA-603, we just had <tt>Map<Range, VirtualEndpoint> pendingRanges<tt>,
     // which was added to when a node began bootstrap and removed from when it finished.
     //
     // This is inadequate when multiple changes are allowed simultaneously.  For example,
@@ -69,8 +69,8 @@ public class TokenMetadata
     //
     // So, we made two changes:
     //
-    // First, we changed pendingRanges to a <tt>Multimap<Range, InetAddressAndPort></tt> (now
-    // <tt>Map<String, Multimap<Range, InetAddressAndPort>></tt>, because replication strategy
+    // First, we changed pendingRanges to a <tt>Multimap<Range, VirtualEndpoint></tt> (now
+    // <tt>Map<String, Multimap<Range, VirtualEndpoint>></tt>, because replication strategy
     // and options are per-KeySpace).
     //
     // Second, we added the bootstrapTokens and leavingEndpoints collections, so we can
@@ -80,17 +80,17 @@ public class TokenMetadata
     // Finally, note that recording the tokens of joining nodes in bootstrapTokens also
     // means we can detect and reject the addition of multiple nodes at the same token
     // before one becomes part of the ring.
-    private final BiMultiValMap<Token, InetAddressAndPort> bootstrapTokens = new BiMultiValMap<>();
+    private final BiMultiValMap<Token, VirtualEndpoint> bootstrapTokens = new BiMultiValMap<>();
 
-    private final BiMap<InetAddressAndPort, InetAddressAndPort> replacementToOriginal = HashBiMap.create();
+    private final BiMap<VirtualEndpoint, VirtualEndpoint> replacementToOriginal = HashBiMap.create();
 
     // (don't need to record Token here since it's still part of tokenToEndpointMap until it's done leaving)
-    private final Set<InetAddressAndPort> leavingEndpoints = new HashSet<>();
+    private final Set<VirtualEndpoint> leavingEndpoints = new HashSet<>();
     // this is a cache of the calculation from {tokenToEndpointMap, bootstrapTokens, leavingEndpoints}
     private final ConcurrentMap<String, PendingRangeMaps> pendingRanges = new ConcurrentHashMap<String, PendingRangeMaps>();
 
     // nodes which are migrating to the new tokens in the ring
-    private final Set<Pair<Token, InetAddressAndPort>> movingEndpoints = new HashSet<>();
+    private final Set<Pair<Token, VirtualEndpoint>> movingEndpoints = new HashSet<>();
 
     /* Use this lock for manipulating the token map */
     private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
@@ -104,13 +104,13 @@ public class TokenMetadata
 
     public TokenMetadata()
     {
-        this(SortedBiMultiValMap.<Token, InetAddressAndPort>create(),
+        this(SortedBiMultiValMap.<Token, VirtualEndpoint>create(),
              HashBiMap.create(),
              new Topology(),
              DatabaseDescriptor.getPartitioner());
     }
 
-    private TokenMetadata(BiMultiValMap<Token, InetAddressAndPort> tokenToEndpointMap, BiMap<InetAddressAndPort, UUID> endpointsMap, Topology topology, IPartitioner partitioner)
+    private TokenMetadata(BiMultiValMap<Token, VirtualEndpoint> tokenToEndpointMap, BiMap<VirtualEndpoint, UUID> endpointsMap, Topology topology, IPartitioner partitioner)
     {
         this.tokenToEndpointMap = tokenToEndpointMap;
         this.topology = topology;
@@ -134,7 +134,7 @@ public class TokenMetadata
     }
 
     /** @return the number of nodes bootstrapping into source's primary range */
-    public int pendingRangeChanges(InetAddressAndPort source)
+    public int pendingRangeChanges(VirtualEndpoint source)
     {
         int n = 0;
         Collection<Range<Token>> sourceRanges = getPrimaryRangesFor(getTokens(source));
@@ -156,14 +156,14 @@ public class TokenMetadata
     /**
      * Update token map with a single token/endpoint pair in normal state.
      */
-    public void updateNormalToken(Token token, InetAddressAndPort endpoint)
+    public void updateNormalToken(Token token, VirtualEndpoint endpoint)
     {
         updateNormalTokens(Collections.singleton(token), endpoint);
     }
 
-    public void updateNormalTokens(Collection<Token> tokens, InetAddressAndPort endpoint)
+    public void updateNormalTokens(Collection<Token> tokens, VirtualEndpoint endpoint)
     {
-        Multimap<InetAddressAndPort, Token> endpointTokens = HashMultimap.create();
+        Multimap<VirtualEndpoint, Token> endpointTokens = HashMultimap.create();
         for (Token token : tokens)
             endpointTokens.put(endpoint, token);
         updateNormalTokens(endpointTokens);
@@ -175,7 +175,7 @@ public class TokenMetadata
      * Prefer this whenever there are multiple pairs to update, as each update (whether a single or multiple)
      * is expensive (CASSANDRA-3831).
      */
-    public void updateNormalTokens(Multimap<InetAddressAndPort, Token> endpointTokens)
+    public void updateNormalTokens(Multimap<VirtualEndpoint, Token> endpointTokens)
     {
         if (endpointTokens.isEmpty())
             return;
@@ -184,7 +184,7 @@ public class TokenMetadata
         try
         {
             boolean shouldSortTokens = false;
-            for (InetAddressAndPort endpoint : endpointTokens.keySet())
+            for (VirtualEndpoint endpoint : endpointTokens.keySet())
             {
                 Collection<Token> tokens = endpointTokens.get(endpoint);
 
@@ -199,7 +199,7 @@ public class TokenMetadata
 
                 for (Token token : tokens)
                 {
-                    InetAddressAndPort prev = tokenToEndpointMap.put(token, endpoint);
+                    VirtualEndpoint prev = tokenToEndpointMap.put(token, endpoint);
                     if (!endpoint.equals(prev))
                     {
                         if (prev != null)
@@ -222,7 +222,7 @@ public class TokenMetadata
      * Store an end-point to host ID mapping.  Each ID must be unique, and
      * cannot be changed after the fact.
      */
-    public void updateHostId(UUID hostId, InetAddressAndPort endpoint)
+    public void updateHostId(UUID hostId, VirtualEndpoint endpoint)
     {
         assert hostId != null;
         assert endpoint != null;
@@ -230,7 +230,7 @@ public class TokenMetadata
         lock.writeLock().lock();
         try
         {
-            InetAddressAndPort storedEp = endpointToHostIdMap.inverse().get(hostId);
+            VirtualEndpoint storedEp = endpointToHostIdMap.inverse().get(hostId);
             if (storedEp != null)
             {
                 if (!storedEp.equals(endpoint) && (FailureDetector.instance.isAlive(storedEp)))
@@ -256,7 +256,7 @@ public class TokenMetadata
     }
 
     /** Return the unique host ID for an end-point. */
-    public UUID getHostId(InetAddressAndPort endpoint)
+    public UUID getHostId(VirtualEndpoint endpoint)
     {
         lock.readLock().lock();
         try
@@ -270,7 +270,7 @@ public class TokenMetadata
     }
 
     /** Return the end-point for a unique host ID */
-    public InetAddressAndPort getEndpointForHostId(UUID hostId)
+    public VirtualEndpoint getEndpointForHostId(UUID hostId)
     {
         lock.readLock().lock();
         try
@@ -284,12 +284,12 @@ public class TokenMetadata
     }
 
     /** @return a copy of the endpoint-to-id map for read-only operations */
-    public Map<InetAddressAndPort, UUID> getEndpointToHostIdMapForReading()
+    public Map<VirtualEndpoint, UUID> getEndpointToHostIdMapForReading()
     {
         lock.readLock().lock();
         try
         {
-            Map<InetAddressAndPort, UUID> readMap = new HashMap<>();
+            Map<VirtualEndpoint, UUID> readMap = new HashMap<>();
             readMap.putAll(endpointToHostIdMap);
             return readMap;
         }
@@ -300,17 +300,17 @@ public class TokenMetadata
     }
 
     @Deprecated
-    public void addBootstrapToken(Token token, InetAddressAndPort endpoint)
+    public void addBootstrapToken(Token token, VirtualEndpoint endpoint)
     {
         addBootstrapTokens(Collections.singleton(token), endpoint);
     }
 
-    public void addBootstrapTokens(Collection<Token> tokens, InetAddressAndPort endpoint)
+    public void addBootstrapTokens(Collection<Token> tokens, VirtualEndpoint endpoint)
     {
         addBootstrapTokens(tokens, endpoint, null);
     }
 
-    private void addBootstrapTokens(Collection<Token> tokens, InetAddressAndPort endpoint, InetAddressAndPort original)
+    private void addBootstrapTokens(Collection<Token> tokens, VirtualEndpoint endpoint, VirtualEndpoint original)
     {
         assert tokens != null && !tokens.isEmpty();
         assert endpoint != null;
@@ -319,7 +319,7 @@ public class TokenMetadata
         try
         {
 
-            InetAddressAndPort oldEndpoint;
+            VirtualEndpoint oldEndpoint;
 
             for (Token token : tokens)
             {
@@ -343,7 +343,7 @@ public class TokenMetadata
         }
     }
 
-    public void addReplaceTokens(Collection<Token> replacingTokens, InetAddressAndPort newNode, InetAddressAndPort oldNode)
+    public void addReplaceTokens(Collection<Token> replacingTokens, VirtualEndpoint newNode, VirtualEndpoint oldNode)
     {
         assert replacingTokens != null && !replacingTokens.isEmpty();
         assert newNode != null && oldNode != null;
@@ -370,12 +370,12 @@ public class TokenMetadata
         }
     }
 
-    public Optional<InetAddressAndPort> getReplacementNode(InetAddressAndPort endpoint)
+    public Optional<VirtualEndpoint> getReplacementNode(VirtualEndpoint endpoint)
     {
         return Optional.ofNullable(replacementToOriginal.inverse().get(endpoint));
     }
 
-    public Optional<InetAddressAndPort> getReplacingNode(InetAddressAndPort endpoint)
+    public Optional<VirtualEndpoint> getReplacingNode(VirtualEndpoint endpoint)
     {
         return Optional.ofNullable((replacementToOriginal.get(endpoint)));
     }
@@ -396,7 +396,7 @@ public class TokenMetadata
         }
     }
 
-    public void addLeavingEndpoint(InetAddressAndPort endpoint)
+    public void addLeavingEndpoint(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -416,7 +416,7 @@ public class TokenMetadata
      * @param token token which is node moving to
      * @param endpoint address of the moving node
      */
-    public void addMovingEndpoint(Token token, InetAddressAndPort endpoint)
+    public void addMovingEndpoint(Token token, VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -432,7 +432,7 @@ public class TokenMetadata
         }
     }
 
-    public void removeEndpoint(InetAddressAndPort endpoint)
+    public void removeEndpoint(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -460,7 +460,7 @@ public class TokenMetadata
     /**
      * This is called when the snitch properties for this endpoint are updated, see CASSANDRA-10238.
      */
-    public void updateTopology(InetAddressAndPort endpoint)
+    public void updateTopology(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -500,14 +500,14 @@ public class TokenMetadata
      * Remove pair of token/address from moving endpoints
      * @param endpoint address of the moving node
      */
-    public void removeFromMoving(InetAddressAndPort endpoint)
+    public void removeFromMoving(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
         lock.writeLock().lock();
         try
         {
-            for (Pair<Token, InetAddressAndPort> pair : movingEndpoints)
+            for (Pair<Token, VirtualEndpoint> pair : movingEndpoints)
             {
                 if (pair.right.equals(endpoint))
                 {
@@ -524,7 +524,7 @@ public class TokenMetadata
         }
     }
 
-    public Collection<Token> getTokens(InetAddressAndPort endpoint)
+    public Collection<Token> getTokens(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
         assert isMember(endpoint); // don't want to return nulls
@@ -541,12 +541,12 @@ public class TokenMetadata
     }
 
     @Deprecated
-    public Token getToken(InetAddressAndPort endpoint)
+    public Token getToken(VirtualEndpoint endpoint)
     {
         return getTokens(endpoint).iterator().next();
     }
 
-    public boolean isMember(InetAddressAndPort endpoint)
+    public boolean isMember(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -561,7 +561,7 @@ public class TokenMetadata
         }
     }
 
-    public boolean isLeaving(InetAddressAndPort endpoint)
+    public boolean isLeaving(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -576,7 +576,7 @@ public class TokenMetadata
         }
     }
 
-    public boolean isMoving(InetAddressAndPort endpoint)
+    public boolean isMoving(VirtualEndpoint endpoint)
     {
         assert endpoint != null;
 
@@ -584,7 +584,7 @@ public class TokenMetadata
 
         try
         {
-            for (Pair<Token, InetAddressAndPort> pair : movingEndpoints)
+            for (Pair<Token, VirtualEndpoint> pair : movingEndpoints)
             {
                 if (pair.right.equals(endpoint))
                     return true;
@@ -664,9 +664,9 @@ public class TokenMetadata
         }
     }
 
-    private static TokenMetadata removeEndpoints(TokenMetadata allLeftMetadata, Set<InetAddressAndPort> leavingEndpoints)
+    private static TokenMetadata removeEndpoints(TokenMetadata allLeftMetadata, Set<VirtualEndpoint> leavingEndpoints)
     {
-        for (InetAddressAndPort endpoint : leavingEndpoints)
+        for (VirtualEndpoint endpoint : leavingEndpoints)
             allLeftMetadata.removeEndpoint(endpoint);
 
         return allLeftMetadata;
@@ -686,11 +686,11 @@ public class TokenMetadata
         {
             TokenMetadata metadata = cloneOnlyTokenMap();
 
-            for (InetAddressAndPort endpoint : leavingEndpoints)
+            for (VirtualEndpoint endpoint : leavingEndpoints)
                 metadata.removeEndpoint(endpoint);
 
 
-            for (Pair<Token, InetAddressAndPort> pair : movingEndpoints)
+            for (Pair<Token, VirtualEndpoint> pair : movingEndpoints)
                 metadata.updateNormalToken(pair.left, pair.right);
 
             return metadata;
@@ -701,7 +701,7 @@ public class TokenMetadata
         }
     }
 
-    public InetAddressAndPort getEndpoint(Token token)
+    public VirtualEndpoint getEndpoint(Token token)
     {
         lock.readLock().lock();
         try
@@ -733,17 +733,17 @@ public class TokenMetadata
         return sortedTokens;
     }
 
-    public Multimap<Range<Token>, InetAddressAndPort> getPendingRangesMM(String keyspaceName)
+    public Multimap<Range<Token>, VirtualEndpoint> getPendingRangesMM(String keyspaceName)
     {
-        Multimap<Range<Token>, InetAddressAndPort> map = HashMultimap.create();
+        Multimap<Range<Token>, VirtualEndpoint> map = HashMultimap.create();
         PendingRangeMaps pendingRangeMaps = this.pendingRanges.get(keyspaceName);
 
         if (pendingRangeMaps != null)
         {
-            for (Map.Entry<Range<Token>, List<InetAddressAndPort>> entry : pendingRangeMaps)
+            for (Map.Entry<Range<Token>, List<VirtualEndpoint>> entry : pendingRangeMaps)
             {
                 Range<Token> range = entry.getKey();
-                for (InetAddressAndPort address : entry.getValue())
+                for (VirtualEndpoint address : entry.getValue())
                 {
                     map.put(range, address);
                 }
@@ -759,10 +759,10 @@ public class TokenMetadata
         return this.pendingRanges.get(keyspaceName);
     }
 
-    public List<Range<Token>> getPendingRanges(String keyspaceName, InetAddressAndPort endpoint)
+    public List<Range<Token>> getPendingRanges(String keyspaceName, VirtualEndpoint endpoint)
     {
         List<Range<Token>> ranges = new ArrayList<>();
-        for (Map.Entry<Range<Token>, InetAddressAndPort> entry : getPendingRangesMM(keyspaceName).entries())
+        for (Map.Entry<Range<Token>, VirtualEndpoint> entry : getPendingRangesMM(keyspaceName).entries())
         {
             if (entry.getValue().equals(endpoint))
             {
@@ -815,9 +815,9 @@ public class TokenMetadata
                 long startedAt = System.currentTimeMillis();
 
                 // create clone of current state
-                BiMultiValMap<Token, InetAddressAndPort> bootstrapTokensClone = new BiMultiValMap<>();
-                Set<InetAddressAndPort> leavingEndpointsClone = new HashSet<>();
-                Set<Pair<Token, InetAddressAndPort>> movingEndpointsClone = new HashSet<>();
+                BiMultiValMap<Token, VirtualEndpoint> bootstrapTokensClone = new BiMultiValMap<>();
+                Set<VirtualEndpoint> leavingEndpointsClone = new HashSet<>();
+                Set<Pair<Token, VirtualEndpoint>> movingEndpointsClone = new HashSet<>();
                 TokenMetadata metadata;
 
                 lock.readLock().lock();
@@ -850,29 +850,29 @@ public class TokenMetadata
      */
     private static PendingRangeMaps calculatePendingRanges(AbstractReplicationStrategy strategy,
                                                            TokenMetadata metadata,
-                                                           BiMultiValMap<Token, InetAddressAndPort> bootstrapTokens,
-                                                           Set<InetAddressAndPort> leavingEndpoints,
-                                                           Set<Pair<Token, InetAddressAndPort>> movingEndpoints)
+                                                           BiMultiValMap<Token, VirtualEndpoint> bootstrapTokens,
+                                                           Set<VirtualEndpoint> leavingEndpoints,
+                                                           Set<Pair<Token, VirtualEndpoint>> movingEndpoints)
     {
         PendingRangeMaps newPendingRanges = new PendingRangeMaps();
 
-        Multimap<InetAddressAndPort, Range<Token>> addressRanges = strategy.getAddressRanges(metadata);
+        Multimap<VirtualEndpoint, Range<Token>> addressRanges = strategy.getAddressRanges(metadata);
 
         // Copy of metadata reflecting the situation after all leave operations are finished.
         TokenMetadata allLeftMetadata = removeEndpoints(metadata.cloneOnlyTokenMap(), leavingEndpoints);
 
         // get all ranges that will be affected by leaving nodes
         Set<Range<Token>> affectedRanges = new HashSet<Range<Token>>();
-        for (InetAddressAndPort endpoint : leavingEndpoints)
+        for (VirtualEndpoint endpoint : leavingEndpoints)
             affectedRanges.addAll(addressRanges.get(endpoint));
 
         // for each of those ranges, find what new nodes will be responsible for the range when
         // all leaving nodes are gone.
         for (Range<Token> range : affectedRanges)
         {
-            Set<InetAddressAndPort> currentEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, metadata));
-            Set<InetAddressAndPort> newEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, allLeftMetadata));
-            for (InetAddressAndPort address : Sets.difference(newEndpoints, currentEndpoints))
+            Set<VirtualEndpoint> currentEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, metadata));
+            Set<VirtualEndpoint> newEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, allLeftMetadata));
+            for (VirtualEndpoint address : Sets.difference(newEndpoints, currentEndpoints))
             {
                 newPendingRanges.addPendingRange(range, address);
             }
@@ -883,8 +883,8 @@ public class TokenMetadata
 
         // For each of the bootstrapping nodes, simply add and remove them one by one to
         // allLeftMetadata and check in between what their ranges would be.
-        Multimap<InetAddressAndPort, Token> bootstrapAddresses = bootstrapTokens.inverse();
-        for (InetAddressAndPort endpoint : bootstrapAddresses.keySet())
+        Multimap<VirtualEndpoint, Token> bootstrapAddresses = bootstrapTokens.inverse();
+        for (VirtualEndpoint endpoint : bootstrapAddresses.keySet())
         {
             Collection<Token> tokens = bootstrapAddresses.get(endpoint);
 
@@ -901,11 +901,11 @@ public class TokenMetadata
 
         // For each of the moving nodes, we do the same thing we did for bootstrapping:
         // simply add and remove them one by one to allLeftMetadata and check in between what their ranges would be.
-        for (Pair<Token, InetAddressAndPort> moving : movingEndpoints)
+        for (Pair<Token, VirtualEndpoint> moving : movingEndpoints)
         {
             //Calculate all the ranges which will could be affected. This will include the ranges before and after the move.
             Set<Range<Token>> moveAffectedRanges = new HashSet<>();
-            InetAddressAndPort endpoint = moving.right; // address of the moving node
+            VirtualEndpoint endpoint = moving.right; // address of the moving node
             //Add ranges before the move
             for (Range<Token> range : strategy.getAddressRanges(allLeftMetadata).get(endpoint))
             {
@@ -921,10 +921,10 @@ public class TokenMetadata
 
             for(Range<Token> range : moveAffectedRanges)
             {
-                Set<InetAddressAndPort> currentEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, metadata));
-                Set<InetAddressAndPort> newEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, allLeftMetadata));
-                Set<InetAddressAndPort> difference = Sets.difference(newEndpoints, currentEndpoints);
-                for(final InetAddressAndPort address : difference)
+                Set<VirtualEndpoint> currentEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, metadata));
+                Set<VirtualEndpoint> newEndpoints = ImmutableSet.copyOf(strategy.calculateNaturalEndpoints(range.right, allLeftMetadata));
+                Set<VirtualEndpoint> difference = Sets.difference(newEndpoints, currentEndpoints);
+                for(final VirtualEndpoint address : difference)
                 {
                     Collection<Range<Token>> newRanges = strategy.getAddressRanges(allLeftMetadata).get(address);
                     Collection<Range<Token>> oldRanges = strategy.getAddressRanges(metadata).get(address);
@@ -964,7 +964,7 @@ public class TokenMetadata
     }
 
     /** @return a copy of the bootstrapping tokens map */
-    public BiMultiValMap<Token, InetAddressAndPort> getBootstrapTokens()
+    public BiMultiValMap<Token, VirtualEndpoint> getBootstrapTokens()
     {
         lock.readLock().lock();
         try
@@ -977,7 +977,7 @@ public class TokenMetadata
         }
     }
 
-    public Set<InetAddressAndPort> getAllEndpoints()
+    public Set<VirtualEndpoint> getAllEndpoints()
     {
         lock.readLock().lock();
         try
@@ -1001,7 +1001,7 @@ public class TokenMetadata
     }
 
     /** caller should not modify leavingEndpoints */
-    public Set<InetAddressAndPort> getLeavingEndpoints()
+    public Set<VirtualEndpoint> getLeavingEndpoints()
     {
         lock.readLock().lock();
         try
@@ -1028,7 +1028,7 @@ public class TokenMetadata
      * Endpoints which are migrating to the new tokens
      * @return set of addresses of moving endpoints
      */
-    public Set<Pair<Token, InetAddressAndPort>> getMovingEndpoints()
+    public Set<Pair<Token, VirtualEndpoint>> getMovingEndpoints()
     {
         lock.readLock().lock();
         try
@@ -1139,14 +1139,14 @@ public class TokenMetadata
         lock.readLock().lock();
         try
         {
-            Multimap<InetAddressAndPort, Token> endpointToTokenMap = tokenToEndpointMap.inverse();
-            Set<InetAddressAndPort> eps = endpointToTokenMap.keySet();
+            Multimap<VirtualEndpoint, Token> endpointToTokenMap = tokenToEndpointMap.inverse();
+            Set<VirtualEndpoint> eps = endpointToTokenMap.keySet();
 
             if (!eps.isEmpty())
             {
                 sb.append("Normal Tokens:");
                 sb.append(System.getProperty("line.separator"));
-                for (InetAddressAndPort ep : eps)
+                for (VirtualEndpoint ep : eps)
                 {
                     sb.append(ep);
                     sb.append(':');
@@ -1159,7 +1159,7 @@ public class TokenMetadata
             {
                 sb.append("Bootstrapping Tokens:" );
                 sb.append(System.getProperty("line.separator"));
-                for (Map.Entry<Token, InetAddressAndPort> entry : bootstrapTokens.entrySet())
+                for (Map.Entry<Token, VirtualEndpoint> entry : bootstrapTokens.entrySet())
                 {
                     sb.append(entry.getValue()).append(':').append(entry.getKey());
                     sb.append(System.getProperty("line.separator"));
@@ -1170,7 +1170,7 @@ public class TokenMetadata
             {
                 sb.append("Leaving Endpoints:");
                 sb.append(System.getProperty("line.separator"));
-                for (InetAddressAndPort ep : leavingEndpoints)
+                for (VirtualEndpoint ep : leavingEndpoints)
                 {
                     sb.append(ep);
                     sb.append(System.getProperty("line.separator"));
@@ -1204,7 +1204,7 @@ public class TokenMetadata
         return sb.toString();
     }
 
-    public Collection<InetAddressAndPort> pendingEndpointsFor(Token token, String keyspaceName)
+    public Collection<VirtualEndpoint> pendingEndpointsFor(Token token, String keyspaceName)
     {
         PendingRangeMaps pendingRangeMaps = this.pendingRanges.get(keyspaceName);
         if (pendingRangeMaps == null)
@@ -1216,19 +1216,19 @@ public class TokenMetadata
     /**
      * @deprecated retained for benefit of old tests
      */
-    public Collection<InetAddressAndPort> getWriteEndpoints(Token token, String keyspaceName, Collection<InetAddressAndPort> naturalEndpoints)
+    public Collection<VirtualEndpoint> getWriteEndpoints(Token token, String keyspaceName, Collection<VirtualEndpoint> naturalEndpoints)
     {
         return ImmutableList.copyOf(Iterables.concat(naturalEndpoints, pendingEndpointsFor(token, keyspaceName)));
     }
 
     /** @return an endpoint to token multimap representation of tokenToEndpointMap (a copy) */
-    public Multimap<InetAddressAndPort, Token> getEndpointToTokenMapForReading()
+    public Multimap<VirtualEndpoint, Token> getEndpointToTokenMapForReading()
     {
         lock.readLock().lock();
         try
         {
-            Multimap<InetAddressAndPort, Token> cloned = HashMultimap.create();
-            for (Map.Entry<Token, InetAddressAndPort> entry : tokenToEndpointMap.entrySet())
+            Multimap<VirtualEndpoint, Token> cloned = HashMultimap.create();
+            for (Map.Entry<Token, VirtualEndpoint> entry : tokenToEndpointMap.entrySet())
                 cloned.put(entry.getValue(), entry.getKey());
             return cloned;
         }
@@ -1242,12 +1242,12 @@ public class TokenMetadata
      * @return a (stable copy, won't be modified) Token to Endpoint map for all the normal and bootstrapping nodes
      *         in the cluster.
      */
-    public Map<Token, InetAddressAndPort> getNormalAndBootstrappingTokenToEndpointMap()
+    public Map<Token, VirtualEndpoint> getNormalAndBootstrappingTokenToEndpointMap()
     {
         lock.readLock().lock();
         try
         {
-            Map<Token, InetAddressAndPort> map = new HashMap<>(tokenToEndpointMap.size() + bootstrapTokens.size());
+            Map<Token, VirtualEndpoint> map = new HashMap<>(tokenToEndpointMap.size() + bootstrapTokens.size());
             map.putAll(tokenToEndpointMap);
             map.putAll(bootstrapTokens);
             return map;
@@ -1293,11 +1293,11 @@ public class TokenMetadata
     public static class Topology
     {
         /** multi-map of DC to endpoints in that DC */
-        private final Multimap<String, InetAddressAndPort> dcEndpoints;
+        private final Multimap<String, VirtualEndpoint> dcEndpoints;
         /** map of DC to multi-map of rack to endpoints in that rack */
-        private final Map<String, Multimap<String, InetAddressAndPort>> dcRacks;
+        private final Map<String, Multimap<String, VirtualEndpoint>> dcRacks;
         /** reverse-lookup map for endpoint to current known dc/rack assignment */
-        private final Map<InetAddressAndPort, Pair<String, String>> currentLocations;
+        private final Map<VirtualEndpoint, Pair<String, String>> currentLocations;
 
         Topology()
         {
@@ -1328,7 +1328,7 @@ public class TokenMetadata
         /**
          * Stores current DC/rack assignment for ep
          */
-        void addEndpoint(InetAddressAndPort ep)
+        void addEndpoint(VirtualEndpoint ep)
         {
             IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
             String dc = snitch.getDatacenter(ep);
@@ -1344,7 +1344,7 @@ public class TokenMetadata
             doAddEndpoint(ep, dc, rack);
         }
 
-        private void doAddEndpoint(InetAddressAndPort ep, String dc, String rack)
+        private void doAddEndpoint(VirtualEndpoint ep, String dc, String rack)
         {
             dcEndpoints.put(dc, ep);
 
@@ -1358,7 +1358,7 @@ public class TokenMetadata
         /**
          * Removes current DC/rack assignment for ep
          */
-        void removeEndpoint(InetAddressAndPort ep)
+        void removeEndpoint(VirtualEndpoint ep)
         {
             if (!currentLocations.containsKey(ep))
                 return;
@@ -1366,13 +1366,13 @@ public class TokenMetadata
             doRemoveEndpoint(ep, currentLocations.remove(ep));
         }
 
-        private void doRemoveEndpoint(InetAddressAndPort ep, Pair<String, String> current)
+        private void doRemoveEndpoint(VirtualEndpoint ep, Pair<String, String> current)
         {
             dcRacks.get(current.left).remove(current.right, ep);
             dcEndpoints.remove(current.left, ep);
         }
 
-        void updateEndpoint(InetAddressAndPort ep)
+        void updateEndpoint(VirtualEndpoint ep)
         {
             IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
             if (snitch == null || !currentLocations.containsKey(ep))
@@ -1387,11 +1387,11 @@ public class TokenMetadata
             if (snitch == null)
                 return;
 
-            for (InetAddressAndPort ep : currentLocations.keySet())
+            for (VirtualEndpoint ep : currentLocations.keySet())
                 updateEndpoint(ep, snitch);
         }
 
-        private void updateEndpoint(InetAddressAndPort ep, IEndpointSnitch snitch)
+        private void updateEndpoint(VirtualEndpoint ep, IEndpointSnitch snitch)
         {
             Pair<String, String> current = currentLocations.get(ep);
             String dc = snitch.getDatacenter(ep);
@@ -1406,7 +1406,7 @@ public class TokenMetadata
         /**
          * @return multi-map of DC to endpoints in that DC
          */
-        public Multimap<String, InetAddressAndPort> getDatacenterEndpoints()
+        public Multimap<String, VirtualEndpoint> getDatacenterEndpoints()
         {
             return dcEndpoints;
         }
@@ -1414,7 +1414,7 @@ public class TokenMetadata
         /**
          * @return map of DC to multi-map of rack to endpoints in that rack
          */
-        public Map<String, Multimap<String, InetAddressAndPort>> getDatacenterRacks()
+        public Map<String, Multimap<String, VirtualEndpoint>> getDatacenterRacks()
         {
             return dcRacks;
         }
@@ -1422,7 +1422,7 @@ public class TokenMetadata
         /**
          * @return The DC and rack of the given endpoint.
          */
-        public Pair<String, String> getLocation(InetAddressAndPort addr)
+        public Pair<String, String> getLocation(VirtualEndpoint addr)
         {
             return currentLocations.get(addr);
         }

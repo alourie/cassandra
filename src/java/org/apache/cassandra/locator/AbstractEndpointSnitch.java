@@ -23,7 +23,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 
 public abstract class AbstractEndpointSnitch implements IEndpointSnitch
 {
-    public abstract int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2);
+    public abstract int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2);
 
     /**
      * Sorts the <tt>Collection</tt> of node addresses by proximity to the given address
@@ -31,9 +31,9 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
      * @param unsortedAddress the nodes to sort
      * @return a new sorted <tt>List</tt>
      */
-    public List<InetAddressAndPort> getSortedListByProximity(InetAddressAndPort address, Collection<InetAddressAndPort> unsortedAddress)
+    public List<VirtualEndpoint> getSortedListByProximity(VirtualEndpoint address, Collection<VirtualEndpoint> unsortedAddress)
     {
-        List<InetAddressAndPort> preferred = new ArrayList<>(unsortedAddress);
+        List<VirtualEndpoint> preferred = new ArrayList<>(unsortedAddress);
         sortByProximity(address, preferred);
         return preferred;
     }
@@ -43,11 +43,11 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
      * @param address the address to sort the proximity by
      * @param addresses the nodes to sort
      */
-    public void sortByProximity(final InetAddressAndPort address, List<InetAddressAndPort> addresses)
+    public void sortByProximity(final VirtualEndpoint address, List<VirtualEndpoint> addresses)
     {
-        Collections.sort(addresses, new Comparator<InetAddressAndPort>()
+        Collections.sort(addresses, new Comparator<VirtualEndpoint>()
         {
-            public int compare(InetAddressAndPort a1, InetAddressAndPort a2)
+            public int compare(VirtualEndpoint a1, VirtualEndpoint a2)
             {
                 return compareEndpoints(address, a1, a2);
             }
@@ -59,7 +59,7 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
         // noop by default
     }
 
-    public boolean isWorthMergingForRangeQuery(List<InetAddressAndPort> merged, List<InetAddressAndPort> l1, List<InetAddressAndPort> l2)
+    public boolean isWorthMergingForRangeQuery(List<VirtualEndpoint> merged, List<VirtualEndpoint> l1, List<VirtualEndpoint> l2)
     {
         // Querying remote DC is likely to be an order of magnitude slower than
         // querying locally, so 2 queries to local nodes is likely to still be
@@ -70,10 +70,10 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
              : true;
     }
 
-    private boolean hasRemoteNode(List<InetAddressAndPort> l)
+    private boolean hasRemoteNode(List<VirtualEndpoint> l)
     {
         String localDc = DatabaseDescriptor.getLocalDataCenter();
-        for (InetAddressAndPort ep : l)
+        for (VirtualEndpoint ep : l)
         {
             if (!localDc.equals(getDatacenter(ep)))
                 return true;

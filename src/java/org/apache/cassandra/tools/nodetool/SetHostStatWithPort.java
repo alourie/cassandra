@@ -24,7 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public class SetHostStatWithPort implements Iterable<HostStatWithPort>
 {
@@ -49,7 +49,7 @@ public class SetHostStatWithPort implements Iterable<HostStatWithPort>
 
     public void add(String token, String host, Map<String, Float> ownerships) throws UnknownHostException
     {
-        InetAddressAndPort endpoint = InetAddressAndPort.getByName(host);
+        VirtualEndpoint endpoint = VirtualEndpoint.getByName(host);
         Float owns = ownerships.get(endpoint.toString());
         hostStats.add(new HostStatWithPort(token, endpoint, resolveIp, owns));
     }

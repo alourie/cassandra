@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 
 import com.datastax.driver.core.*;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.schema.*;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.ColumnMetadata.ClusteringOrder;
@@ -109,7 +109,7 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
                     {
                         portToUse = storagePort;
                     }
-                    addRangeForEndpoint(range, InetAddressAndPort.getByNameOverrideDefaults(endpoint.getAddress().getHostAddress(), portToUse));
+                    addRangeForEndpoint(range, VirtualEndpoint.getByNameOverrideDefaults(endpoint.getAddress().getHostAddress(), portToUse));
                 }
             }
 

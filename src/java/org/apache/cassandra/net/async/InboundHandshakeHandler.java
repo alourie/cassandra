@@ -1,7 +1,6 @@
 package org.apache.cassandra.net.async;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
@@ -22,7 +21,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.ssl.SslHandler;
 import org.apache.cassandra.auth.IInternodeAuthenticator;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.async.HandshakeProtocol.FirstHandshakeMessage;
 import org.apache.cassandra.net.async.HandshakeProtocol.SecondHandshakeMessage;
@@ -210,7 +209,7 @@ class InboundHandshakeHandler extends ByteToMessageDecoder
     {
         ChannelPipeline pipeline = ctx.pipeline();
         InetSocketAddress address = (InetSocketAddress) ctx.channel().remoteAddress();
-        pipeline.addLast(NettyFactory.instance.streamingGroup, "streamInbound", new StreamingInboundHandler(InetAddressAndPort.getByAddressOverrideDefaults(address.getAddress(), address.getPort()), protocolVersion, null));
+        pipeline.addLast(NettyFactory.instance.streamingGroup, "streamInbound", new StreamingInboundHandler(VirtualEndpoint.getByAddressOverrideDefaults(address.getAddress(), address.getPort()), protocolVersion, null));
         pipeline.remove(this);
 
         // pass a custom recv ByteBuf allocator to the channel. the default recv ByteBuf size is 1k, but in streaming we're
@@ -245,7 +244,7 @@ class InboundHandshakeHandler extends ByteToMessageDecoder
         }
 
         // record the (true) version of the endpoint
-        InetAddressAndPort from = msg.address;
+        VirtualEndpoint from = msg.address;
         MessagingService.instance().setVersion(from, maxVersion);
         logger.trace("Set version for {} to {} (will use {})", from, maxVersion, MessagingService.instance().getVersion(from));
 
@@ -254,7 +253,7 @@ class InboundHandshakeHandler extends ByteToMessageDecoder
     }
 
     @VisibleForTesting
-    void setupMessagingPipeline(ChannelPipeline pipeline, InetAddressAndPort peer, boolean compressed, int messagingVersion)
+    void setupMessagingPipeline(ChannelPipeline pipeline, VirtualEndpoint peer, boolean compressed, int messagingVersion)
     {
         if (compressed)
             pipeline.addLast(NettyFactory.INBOUND_COMPRESSOR_HANDLER_NAME, NettyFactory.createLz4Decoder(messagingVersion));

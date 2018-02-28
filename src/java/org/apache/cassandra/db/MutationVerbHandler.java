@@ -21,13 +21,13 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.cassandra.exceptions.WriteTimeoutException;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
 
 public class MutationVerbHandler implements IVerbHandler<Mutation>
 {
-    private void reply(int id, InetAddressAndPort replyTo)
+    private void reply(int id, VirtualEndpoint replyTo)
     {
         Tracing.trace("Enqueuing response to {}", replyTo);
         MessagingService.instance().sendReply(WriteResponse.createMessage(), id, replyTo);
@@ -41,8 +41,8 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
     public void doVerb(MessageIn<Mutation> message, int id)  throws IOException
     {
         // Check if there were any forwarding headers in this message
-        InetAddressAndPort from = (InetAddressAndPort)message.parameters.get(ParameterType.FORWARD_FROM);
-        InetAddressAndPort replyTo;
+        VirtualEndpoint from = (VirtualEndpoint)message.parameters.get(ParameterType.FORWARD_FROM);
+        VirtualEndpoint replyTo;
         if (from == null)
         {
             replyTo = message.from;
@@ -69,15 +69,15 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
         }
     }
 
-    private static void forwardToLocalNodes(Mutation mutation, MessagingService.Verb verb, ForwardToContainer forwardTo, InetAddressAndPort from) throws IOException
+    private static void forwardToLocalNodes(Mutation mutation, MessagingService.Verb verb, ForwardToContainer forwardTo, VirtualEndpoint from) throws IOException
     {
         // tell the recipients who to send their ack to
         MessageOut<Mutation> message = new MessageOut<>(verb, mutation, Mutation.serializer).withParameter(ParameterType.FORWARD_FROM, from);
-        Iterator<InetAddressAndPort> iterator = forwardTo.targets.iterator();
+        Iterator<VirtualEndpoint> iterator = forwardTo.targets.iterator();
         // Send a message to each of the addresses on our Forward List
         for (int i = 0; i < forwardTo.targets.size(); i++)
         {
-            InetAddressAndPort address = iterator.next();
+            VirtualEndpoint address = iterator.next();
             Tracing.trace("Enqueuing forwarded write to {}", address);
             MessagingService.instance().sendOneWay(message, forwardTo.messageIds[i], address);
         }

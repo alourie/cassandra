@@ -44,7 +44,7 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
     private final boolean preferLocal;
     private final AtomicReference<ReconnectableSnitchHelper> snitchHelperReference;
 
-    private Map<InetAddressAndPort, Map<String, String>> savedEndpoints;
+    private Map<VirtualEndpoint, Map<String, String>> savedEndpoints;
     private static final String DEFAULT_DC = "UNKNOWN_DC";
     private static final String DEFAULT_RACK = "UNKNOWN_RACK";
 
@@ -83,7 +83,7 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
      * @param endpoint the endpoint to process
      * @return string of data center
      */
-    public String getDatacenter(InetAddressAndPort endpoint)
+    public String getDatacenter(VirtualEndpoint endpoint)
     {
         if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return myDC;
@@ -111,7 +111,7 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
      * @param endpoint the endpoint to process
      * @return string of rack
      */
-    public String getRack(InetAddressAndPort endpoint)
+    public String getRack(VirtualEndpoint endpoint)
     {
         if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return myRack;

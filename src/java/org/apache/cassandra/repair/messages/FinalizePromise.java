@@ -24,17 +24,17 @@ import java.util.UUID;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.utils.UUIDSerializer;
 
 public class FinalizePromise extends RepairMessage
 {
     public final UUID sessionID;
-    public final InetAddressAndPort participant;
+    public final VirtualEndpoint participant;
     public final boolean promised;
 
-    public FinalizePromise(UUID sessionID, InetAddressAndPort participant, boolean promised)
+    public FinalizePromise(UUID sessionID, VirtualEndpoint participant, boolean promised)
     {
         super(Type.FINALIZE_PROMISE, null);
         assert sessionID != null;

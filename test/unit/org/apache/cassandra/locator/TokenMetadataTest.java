@@ -55,8 +55,8 @@ public class TokenMetadataTest
     {
         DatabaseDescriptor.daemonInitialization();
         tmd = StorageService.instance.getTokenMetadata();
-        tmd.updateNormalToken(token(ONE), InetAddressAndPort.getByName("127.0.0.1"));
-        tmd.updateNormalToken(token(SIX), InetAddressAndPort.getByName("127.0.0.6"));
+        tmd.updateNormalToken(token(ONE), VirtualEndpoint.getByName("127.0.0.1"));
+        tmd.updateNormalToken(token(SIX), VirtualEndpoint.getByName("127.0.0.6"));
     }
 
     private static void testRingIterator(ArrayList<Token> ring, String start, boolean includeMin, String... expected)
@@ -97,8 +97,8 @@ public class TokenMetadataTest
     @Test
     public void testTopologyUpdate_RackConsolidation() throws UnknownHostException
     {
-        final InetAddressAndPort first = InetAddressAndPort.getByName("127.0.0.1");
-        final InetAddressAndPort second = InetAddressAndPort.getByName("127.0.0.6");
+        final VirtualEndpoint first = VirtualEndpoint.getByName("127.0.0.1");
+        final VirtualEndpoint second = VirtualEndpoint.getByName("127.0.0.6");
         final String DATA_CENTER = "datacenter1";
         final String RACK1 = "rack1";
         final String RACK2 = "rack2";
@@ -106,19 +106,19 @@ public class TokenMetadataTest
         DatabaseDescriptor.setEndpointSnitch(new AbstractEndpointSnitch()
         {
             @Override
-            public String getRack(InetAddressAndPort endpoint)
+            public String getRack(VirtualEndpoint endpoint)
             {
                 return endpoint.equals(first) ? RACK1 : RACK2;
             }
 
             @Override
-            public String getDatacenter(InetAddressAndPort endpoint)
+            public String getDatacenter(VirtualEndpoint endpoint)
             {
                 return DATA_CENTER;
             }
 
             @Override
-            public int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2)
+            public int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2)
             {
                 return 0;
             }
@@ -133,14 +133,14 @@ public class TokenMetadataTest
         TokenMetadata.Topology topology = tokenMetadata.getTopology();
         assertNotNull(topology);
 
-        Multimap<String, InetAddressAndPort> allEndpoints = topology.getDatacenterEndpoints();
+        Multimap<String, VirtualEndpoint> allEndpoints = topology.getDatacenterEndpoints();
         assertNotNull(allEndpoints);
         assertTrue(allEndpoints.size() == 2);
         assertTrue(allEndpoints.containsKey(DATA_CENTER));
         assertTrue(allEndpoints.get(DATA_CENTER).contains(first));
         assertTrue(allEndpoints.get(DATA_CENTER).contains(second));
 
-        Map<String, Multimap<String, InetAddressAndPort>> racks = topology.getDatacenterRacks();
+        Map<String, Multimap<String, VirtualEndpoint>> racks = topology.getDatacenterRacks();
         assertNotNull(racks);
         assertTrue(racks.size() == 1);
         assertTrue(racks.containsKey(DATA_CENTER));
@@ -153,19 +153,19 @@ public class TokenMetadataTest
         DatabaseDescriptor.setEndpointSnitch(new AbstractEndpointSnitch()
         {
             @Override
-            public String getRack(InetAddressAndPort endpoint)
+            public String getRack(VirtualEndpoint endpoint)
             {
                 return RACK1;
             }
 
             @Override
-            public String getDatacenter(InetAddressAndPort endpoint)
+            public String getDatacenter(VirtualEndpoint endpoint)
             {
                 return DATA_CENTER;
             }
 
             @Override
-            public int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2)
+            public int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2)
             {
                 return 0;
             }
@@ -195,8 +195,8 @@ public class TokenMetadataTest
     @Test
     public void testTopologyUpdate_RackExpansion() throws UnknownHostException
     {
-        final InetAddressAndPort first = InetAddressAndPort.getByName("127.0.0.1");
-        final InetAddressAndPort second = InetAddressAndPort.getByName("127.0.0.6");
+        final VirtualEndpoint first = VirtualEndpoint.getByName("127.0.0.1");
+        final VirtualEndpoint second = VirtualEndpoint.getByName("127.0.0.6");
         final String DATA_CENTER = "datacenter1";
         final String RACK1 = "rack1";
         final String RACK2 = "rack2";
@@ -204,19 +204,19 @@ public class TokenMetadataTest
         DatabaseDescriptor.setEndpointSnitch(new AbstractEndpointSnitch()
         {
             @Override
-            public String getRack(InetAddressAndPort endpoint)
+            public String getRack(VirtualEndpoint endpoint)
             {
                 return RACK1;
             }
 
             @Override
-            public String getDatacenter(InetAddressAndPort endpoint)
+            public String getDatacenter(VirtualEndpoint endpoint)
             {
                 return DATA_CENTER;
             }
 
             @Override
-            public int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2)
+            public int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2)
             {
                 return 0;
             }
@@ -231,14 +231,14 @@ public class TokenMetadataTest
         TokenMetadata.Topology topology = tokenMetadata.getTopology();
         assertNotNull(topology);
 
-        Multimap<String, InetAddressAndPort> allEndpoints = topology.getDatacenterEndpoints();
+        Multimap<String, VirtualEndpoint> allEndpoints = topology.getDatacenterEndpoints();
         assertNotNull(allEndpoints);
         assertTrue(allEndpoints.size() == 2);
         assertTrue(allEndpoints.containsKey(DATA_CENTER));
         assertTrue(allEndpoints.get(DATA_CENTER).contains(first));
         assertTrue(allEndpoints.get(DATA_CENTER).contains(second));
 
-        Map<String, Multimap<String, InetAddressAndPort>> racks = topology.getDatacenterRacks();
+        Map<String, Multimap<String, VirtualEndpoint>> racks = topology.getDatacenterRacks();
         assertNotNull(racks);
         assertTrue(racks.size() == 1);
         assertTrue(racks.containsKey(DATA_CENTER));
@@ -251,19 +251,19 @@ public class TokenMetadataTest
         DatabaseDescriptor.setEndpointSnitch(new AbstractEndpointSnitch()
         {
             @Override
-            public String getRack(InetAddressAndPort endpoint)
+            public String getRack(VirtualEndpoint endpoint)
             {
                 return endpoint.equals(first) ? RACK1 : RACK2;
             }
 
             @Override
-            public String getDatacenter(InetAddressAndPort endpoint)
+            public String getDatacenter(VirtualEndpoint endpoint)
             {
                 return DATA_CENTER;
             }
 
             @Override
-            public int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2)
+            public int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2)
             {
                 return 0;
             }
@@ -292,8 +292,8 @@ public class TokenMetadataTest
     @Test
     public void testEndpointSizes() throws UnknownHostException
     {
-        final InetAddressAndPort first = InetAddressAndPort.getByName("127.0.0.1");
-        final InetAddressAndPort second = InetAddressAndPort.getByName("127.0.0.6");
+        final VirtualEndpoint first = VirtualEndpoint.getByName("127.0.0.1");
+        final VirtualEndpoint second = VirtualEndpoint.getByName("127.0.0.6");
 
         tmd.updateNormalToken(token(ONE), first);
         tmd.updateNormalToken(token(SIX), second);

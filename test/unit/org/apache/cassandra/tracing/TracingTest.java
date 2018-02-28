@@ -27,11 +27,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.commons.lang3.StringUtils;
 
@@ -198,7 +198,7 @@ public final class TracingTest
             return super.newSession(sessionId, traceType, customPayload);
         }
 
-        protected TraceState newTraceState(InetAddressAndPort ia, UUID uuid, Tracing.TraceType tt)
+        protected TraceState newTraceState(VirtualEndpoint ia, UUID uuid, Tracing.TraceType tt)
         {
             return new TraceState(ia, uuid, tt)
             {

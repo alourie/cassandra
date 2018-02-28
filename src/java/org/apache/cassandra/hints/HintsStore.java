@@ -25,12 +25,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.io.FSWriteError;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.SyncUtil;
 
@@ -77,14 +77,14 @@ final class HintsStore
         return new HintsStore(hostId, hintsDirectory, writerParams, descriptors);
     }
 
-    InetAddressAndPort address()
+    VirtualEndpoint address()
     {
         return StorageService.instance.getEndpointForHostId(hostId);
     }
 
     boolean isLive()
     {
-        InetAddressAndPort address = address();
+        VirtualEndpoint address = address();
         return address != null && FailureDetector.instance.isAlive(address);
     }
 

@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.collect.Sets;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -34,7 +35,6 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.gms.Gossiper;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.streaming.PreviewKind;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.UUIDGen;
@@ -53,7 +53,7 @@ public class RepairSessionTest
     @Test
     public void testConviction() throws Exception
     {
-        InetAddressAndPort remote = InetAddressAndPort.getByName("127.0.0.2");
+        VirtualEndpoint remote = VirtualEndpoint.getByName("127.0.0.2");
         Gossiper.instance.initializeNodeUnsafe(remote, UUID.randomUUID(), 1);
 
         // Set up RepairSession
@@ -61,7 +61,7 @@ public class RepairSessionTest
         UUID sessionId = UUID.randomUUID();
         IPartitioner p = Murmur3Partitioner.instance;
         Range<Token> repairRange = new Range<>(p.getToken(ByteBufferUtil.bytes(0)), p.getToken(ByteBufferUtil.bytes(100)));
-        Set<InetAddressAndPort> endpoints = Sets.newHashSet(remote);
+        Set<VirtualEndpoint> endpoints = Sets.newHashSet(remote);
         RepairSession session = new RepairSession(parentSessionId, sessionId, Arrays.asList(repairRange),
                                                   "Keyspace1", RepairParallelism.SEQUENTIAL,
                                                   endpoints, false, false, false,

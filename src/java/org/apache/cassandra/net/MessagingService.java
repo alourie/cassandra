@@ -90,7 +90,7 @@ import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.locator.ILatencySubscriber;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.ConnectionMetrics;
 import org.apache.cassandra.metrics.DroppedMessageMetrics;
@@ -445,7 +445,7 @@ public final class MessagingService implements MessagingServiceMBean
     private final Map<Verb, IVerbHandler> verbHandlers;
 
     @VisibleForTesting
-    public final ConcurrentMap<InetAddressAndPort, OutboundMessagingPool> channelManagers = new NonBlockingHashMap<>();
+    public final ConcurrentMap<VirtualEndpoint, OutboundMessagingPool> channelManagers = new NonBlockingHashMap<>();
     final List<ServerChannel> serverChannels = Lists.newArrayList();
 
     private static final Logger logger = LoggerFactory.getLogger(MessagingService.class);
@@ -504,7 +504,7 @@ public final class MessagingService implements MessagingServiceMBean
     private final List<ILatencySubscriber> subscribers = new ArrayList<ILatencySubscriber>();
 
     // protocol versions of the other nodes in the cluster
-    private final ConcurrentMap<InetAddressAndPort, Integer> versions = new NonBlockingHashMap<>();
+    private final ConcurrentMap<VirtualEndpoint, Integer> versions = new NonBlockingHashMap<>();
 
     // message sinks are a testing hook
     private final Set<IMessageSink> messageSinks = new CopyOnWriteArraySet<>();
@@ -627,7 +627,7 @@ public final class MessagingService implements MessagingServiceMBean
      * @param callback The message callback.
      * @param message The actual message.
      */
-    public void updateBackPressureOnSend(InetAddressAndPort host, IAsyncCallback callback, MessageOut<?> message)
+    public void updateBackPressureOnSend(VirtualEndpoint host, IAsyncCallback callback, MessageOut<?> message)
     {
         if (DatabaseDescriptor.backPressureEnabled() && callback.supportsBackPressure())
         {
@@ -644,7 +644,7 @@ public final class MessagingService implements MessagingServiceMBean
      * @param callback The message callback.
      * @param timeout True if updated following a timeout, false otherwise.
      */
-    public void updateBackPressureOnReceive(InetAddressAndPort host, IAsyncCallback callback, boolean timeout)
+    public void updateBackPressureOnReceive(VirtualEndpoint host, IAsyncCallback callback, boolean timeout)
     {
         if (DatabaseDescriptor.backPressureEnabled() && callback.supportsBackPressure())
         {
@@ -667,12 +667,12 @@ public final class MessagingService implements MessagingServiceMBean
      * @param hosts The hosts to apply back-pressure to.
      * @param timeoutInNanos The max back-pressure timeout.
      */
-    public void applyBackPressure(Iterable<InetAddressAndPort> hosts, long timeoutInNanos)
+    public void applyBackPressure(Iterable<VirtualEndpoint> hosts, long timeoutInNanos)
     {
         if (DatabaseDescriptor.backPressureEnabled())
         {
             Set<BackPressureState> states = new HashSet<BackPressureState>();
-            for (InetAddressAndPort host : hosts)
+            for (VirtualEndpoint host : hosts)
             {
                 if (host.equals(FBUtilities.getBroadcastAddressAndPort()))
                     continue;
@@ -684,13 +684,13 @@ public final class MessagingService implements MessagingServiceMBean
         }
     }
 
-    BackPressureState getBackPressureState(InetAddressAndPort host)
+    BackPressureState getBackPressureState(VirtualEndpoint host)
     {
         OutboundMessagingPool messagingConnection = getMessagingConnection(host);
         return messagingConnection != null ? messagingConnection.getBackPressureState() : null;
     }
 
-    void markTimeout(InetAddressAndPort addr)
+    void markTimeout(VirtualEndpoint addr)
     {
         OutboundMessagingPool conn = channelManagers.get(addr);
         if (conn != null)
@@ -704,13 +704,13 @@ public final class MessagingService implements MessagingServiceMBean
      * @param address the host that replied to the message
      * @param latency
      */
-    public void maybeAddLatency(IAsyncCallback cb, InetAddressAndPort address, long latency)
+    public void maybeAddLatency(IAsyncCallback cb, VirtualEndpoint address, long latency)
     {
         if (cb.isLatencyForSnitch())
             addLatency(address, latency);
     }
 
-    public void addLatency(InetAddressAndPort address, long latency)
+    public void addLatency(VirtualEndpoint address, long latency)
     {
         for (ILatencySubscriber subscriber : subscribers)
             subscriber.receiveTiming(address, latency);
@@ -719,7 +719,7 @@ public final class MessagingService implements MessagingServiceMBean
     /**
      * called from gossiper when it notices a node is not responding.
      */
-    public void convict(InetAddressAndPort ep)
+    public void convict(VirtualEndpoint ep)
     {
         logger.trace("Resetting pool for {}", ep);
         reset(ep);
@@ -748,9 +748,9 @@ public final class MessagingService implements MessagingServiceMBean
     /**
      * Listen on the specified port.
      *
-     * @param localEp InetAddressAndPort whose port to listen on.
+     * @param localEp VirtualEndpoint whose port to listen on.
      */
-    private void listen(InetAddressAndPort localEp, ServerEncryptionOptions serverEncryptionOptions) throws ConfigurationException
+    private void listen(VirtualEndpoint localEp, ServerEncryptionOptions serverEncryptionOptions) throws ConfigurationException
     {
         IInternodeAuthenticator authenticator = DatabaseDescriptor.getInternodeAuthenticator();
         int receiveBufferSize = DatabaseDescriptor.getInternodeRecvBufferSize();
@@ -764,7 +764,7 @@ public final class MessagingService implements MessagingServiceMBean
             ServerEncryptionOptions legacyEncOptions = new ServerEncryptionOptions(serverEncryptionOptions);
             legacyEncOptions.optional = false;
 
-            InetAddressAndPort localAddr = InetAddressAndPort.getByAddressOverrideDefaults(localEp.address, DatabaseDescriptor.getSSLStoragePort());
+            VirtualEndpoint localAddr = VirtualEndpoint.getByAddressOverrideDefaults(localEp.address, DatabaseDescriptor.getSSLStoragePort());
             ChannelGroup channelGroup = new DefaultChannelGroup("LegacyEncryptedInternodeMessagingGroup", NettyFactory.executorForChannelGroups());
             InboundInitializer initializer = new InboundInitializer(authenticator, legacyEncOptions, channelGroup);
             Channel encryptedChannel = NettyFactory.instance.createInboundChannel(localAddr, initializer, receiveBufferSize);
@@ -773,7 +773,7 @@ public final class MessagingService implements MessagingServiceMBean
 
         // this is for the socket that can be plain, only ssl, or optional plain/ssl
         assert localEp.port == DatabaseDescriptor.getStoragePort() : String.format("Local endpoint port %d doesn't match YAML configured port %d%n", localEp.port, DatabaseDescriptor.getStoragePort());
-        InetAddressAndPort localAddr = InetAddressAndPort.getByAddressOverrideDefaults(localEp.address, DatabaseDescriptor.getStoragePort());
+        VirtualEndpoint localAddr = VirtualEndpoint.getByAddressOverrideDefaults(localEp.address, DatabaseDescriptor.getStoragePort());
         ChannelGroup channelGroup = new DefaultChannelGroup("InternodeMessagingGroup", NettyFactory.executorForChannelGroups());
         InboundInitializer initializer = new InboundInitializer(authenticator, serverEncryptionOptions, channelGroup);
         Channel channel = NettyFactory.instance.createInboundChannel(localAddr, initializer, receiveBufferSize);
@@ -808,10 +808,10 @@ public final class MessagingService implements MessagingServiceMBean
          * the inbound connections/channels can be closed when the listening socket itself is being closed.
          */
         private final ChannelGroup connectedChannels;
-        private final InetAddressAndPort address;
+        private final VirtualEndpoint address;
         private final SecurityLevel securityLevel;
 
-        private ServerChannel(Channel channel, ChannelGroup channelGroup, InetAddressAndPort address, SecurityLevel securityLevel)
+        private ServerChannel(Channel channel, ChannelGroup channelGroup, VirtualEndpoint address, SecurityLevel securityLevel)
         {
             this.channel = channel;
             this.connectedChannels = channelGroup;
@@ -839,7 +839,7 @@ public final class MessagingService implements MessagingServiceMBean
             return channel;
         }
 
-        InetAddressAndPort getAddress()
+        VirtualEndpoint getAddress()
         {
             return address;
         }
@@ -868,7 +868,7 @@ public final class MessagingService implements MessagingServiceMBean
     }
 
 
-    public void destroyConnectionPool(InetAddressAndPort to)
+    public void destroyConnectionPool(VirtualEndpoint to)
     {
         OutboundMessagingPool pool = channelManagers.remove(to);
         if (pool != null)
@@ -883,23 +883,23 @@ public final class MessagingService implements MessagingServiceMBean
      * @param address IP Address to identify the peer
      * @param preferredAddress IP Address to use (and prefer) going forward for connecting to the peer
      */
-    public void reconnectWithNewIp(InetAddressAndPort address, InetAddressAndPort preferredAddress)
+    public void reconnectWithNewIp(VirtualEndpoint address, VirtualEndpoint preferredAddress)
     {
         SystemKeyspace.updatePreferredIP(address, preferredAddress);
 
         OutboundMessagingPool messagingPool = channelManagers.get(address);
         if (messagingPool != null)
-            messagingPool.reconnectWithNewIp(InetAddressAndPort.getByAddressOverrideDefaults(preferredAddress.address, portFor(address)));
+            messagingPool.reconnectWithNewIp(VirtualEndpoint.getByAddressOverrideDefaults(preferredAddress.address, portFor(address)));
     }
 
-    private void reset(InetAddressAndPort address)
+    private void reset(VirtualEndpoint address)
     {
         OutboundMessagingPool messagingPool = channelManagers.remove(address);
         if (messagingPool != null)
             messagingPool.close(false);
     }
 
-    public InetAddressAndPort getCurrentEndpoint(InetAddressAndPort publicAddress)
+    public VirtualEndpoint getCurrentEndpoint(VirtualEndpoint publicAddress)
     {
         OutboundMessagingPool messagingPool = getMessagingConnection(publicAddress);
         return messagingPool != null ? messagingPool.getPreferredRemoteAddr() : null;
@@ -930,7 +930,7 @@ public final class MessagingService implements MessagingServiceMBean
         return verbHandlers.get(type);
     }
 
-    public int addCallback(IAsyncCallback cb, MessageOut message, InetAddressAndPort to, long timeout, boolean failureCallback)
+    public int addCallback(IAsyncCallback cb, MessageOut message, VirtualEndpoint to, long timeout, boolean failureCallback)
     {
         assert message.verb != Verb.MUTATION; // mutations need to call the overload with a ConsistencyLevel
         int messageId = nextId();
@@ -941,7 +941,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     public int addCallback(IAsyncCallback cb,
                            MessageOut<?> message,
-                           InetAddressAndPort to,
+                           VirtualEndpoint to,
                            long timeout,
                            ConsistencyLevel consistencyLevel,
                            boolean allowHints)
@@ -970,12 +970,12 @@ public final class MessagingService implements MessagingServiceMBean
         return idGen.incrementAndGet();
     }
 
-    public int sendRR(MessageOut message, InetAddressAndPort to, IAsyncCallback cb)
+    public int sendRR(MessageOut message, VirtualEndpoint to, IAsyncCallback cb)
     {
         return sendRR(message, to, cb, message.getTimeout(), false);
     }
 
-    public int sendRRWithFailure(MessageOut message, InetAddressAndPort to, IAsyncCallbackWithFailure cb)
+    public int sendRRWithFailure(MessageOut message, VirtualEndpoint to, IAsyncCallbackWithFailure cb)
     {
         return sendRR(message, to, cb, message.getTimeout(), true);
     }
@@ -991,7 +991,7 @@ public final class MessagingService implements MessagingServiceMBean
      * @param timeout the timeout used for expiration
      * @return an reference to message id used to match with the result
      */
-    public int sendRR(MessageOut message, InetAddressAndPort to, IAsyncCallback cb, long timeout, boolean failureCallback)
+    public int sendRR(MessageOut message, VirtualEndpoint to, IAsyncCallback cb, long timeout, boolean failureCallback)
     {
         int id = addCallback(cb, message, to, timeout, failureCallback);
         updateBackPressureOnSend(to, cb, message);
@@ -1012,7 +1012,7 @@ public final class MessagingService implements MessagingServiceMBean
      * @return an reference to message id used to match with the result
      */
     public int sendRR(MessageOut<?> message,
-                      InetAddressAndPort to,
+                      VirtualEndpoint to,
                       AbstractWriteResponseHandler<?> handler,
                       boolean allowHints)
     {
@@ -1022,12 +1022,12 @@ public final class MessagingService implements MessagingServiceMBean
         return id;
     }
 
-    public void sendOneWay(MessageOut message, InetAddressAndPort to)
+    public void sendOneWay(MessageOut message, VirtualEndpoint to)
     {
         sendOneWay(message, nextId(), to);
     }
 
-    public void sendReply(MessageOut message, int id, InetAddressAndPort to)
+    public void sendReply(MessageOut message, int id, VirtualEndpoint to)
     {
         sendOneWay(message, id, to);
     }
@@ -1039,7 +1039,7 @@ public final class MessagingService implements MessagingServiceMBean
      * @param message messages to be sent.
      * @param to      endpoint to which the message needs to be sent
      */
-    public void sendOneWay(MessageOut message, int id, InetAddressAndPort to)
+    public void sendOneWay(MessageOut message, int id, VirtualEndpoint to)
     {
         if (logger.isTraceEnabled())
             logger.trace("{} sending {} to {}@{}", FBUtilities.getBroadcastAddressAndPort(), message.verb, id, to);
@@ -1057,7 +1057,7 @@ public final class MessagingService implements MessagingServiceMBean
             outboundMessagingPool.sendMessage(message, id);
     }
 
-    public <T> AsyncOneResponse<T> sendRR(MessageOut message, InetAddressAndPort to)
+    public <T> AsyncOneResponse<T> sendRR(MessageOut message, VirtualEndpoint to)
     {
         AsyncOneResponse<T> iar = new AsyncOneResponse<T>();
         sendRR(message, to, iar);
@@ -1175,7 +1175,7 @@ public final class MessagingService implements MessagingServiceMBean
     /**
      * @return the last version associated with address, or @param version if this is the first such version
      */
-    public int setVersion(InetAddressAndPort endpoint, int version)
+    public int setVersion(VirtualEndpoint endpoint, int version)
     {
         logger.trace("Setting version {} for {}", version, endpoint);
 
@@ -1183,7 +1183,7 @@ public final class MessagingService implements MessagingServiceMBean
         return v == null ? version : v;
     }
 
-    public void resetVersion(InetAddressAndPort endpoint)
+    public void resetVersion(VirtualEndpoint endpoint)
     {
         logger.trace("Resetting version for {}", endpoint);
         versions.remove(endpoint);
@@ -1193,7 +1193,7 @@ public final class MessagingService implements MessagingServiceMBean
      * Returns the messaging-version as announced by the given node but capped
      * to the min of the version as announced by the node and {@link #current_version}.
      */
-    public int getVersion(InetAddressAndPort endpoint)
+    public int getVersion(VirtualEndpoint endpoint)
     {
         Integer v = versions.get(endpoint);
         if (v == null)
@@ -1208,13 +1208,13 @@ public final class MessagingService implements MessagingServiceMBean
 
     public int getVersion(String endpoint) throws UnknownHostException
     {
-        return getVersion(InetAddressAndPort.getByName(endpoint));
+        return getVersion(VirtualEndpoint.getByName(endpoint));
     }
 
     /**
      * Returns the messaging-version exactly as announced by the given endpoint.
      */
-    public int getRawVersion(InetAddressAndPort endpoint)
+    public int getRawVersion(VirtualEndpoint endpoint)
     {
         Integer v = versions.get(endpoint);
         if (v == null)
@@ -1222,7 +1222,7 @@ public final class MessagingService implements MessagingServiceMBean
         return v;
     }
 
-    public boolean knowsVersion(InetAddressAndPort endpoint)
+    public boolean knowsVersion(VirtualEndpoint endpoint)
     {
         return versions.containsKey(endpoint);
     }
@@ -1357,7 +1357,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Integer> getLargeMessagePendingTasks()
     {
         Map<String, Integer> pendingTasks = new HashMap<String, Integer>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             pendingTasks.put(entry.getKey().toString(false), entry.getValue().largeMessageChannel.getPendingMessages());
         return pendingTasks;
     }
@@ -1365,7 +1365,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getLargeMessageCompletedTasks()
     {
         Map<String, Long> completedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             completedTasks.put(entry.getKey().toString(false), entry.getValue().largeMessageChannel.getCompletedMessages());
         return completedTasks;
     }
@@ -1373,7 +1373,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getLargeMessageDroppedTasks()
     {
         Map<String, Long> droppedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             droppedTasks.put(entry.getKey().toString(false), entry.getValue().largeMessageChannel.getDroppedMessages());
         return droppedTasks;
     }
@@ -1381,7 +1381,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Integer> getSmallMessagePendingTasks()
     {
         Map<String, Integer> pendingTasks = new HashMap<String, Integer>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             pendingTasks.put(entry.getKey().toString(false), entry.getValue().smallMessageChannel.getPendingMessages());
         return pendingTasks;
     }
@@ -1389,7 +1389,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getSmallMessageCompletedTasks()
     {
         Map<String, Long> completedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             completedTasks.put(entry.getKey().toString(false), entry.getValue().smallMessageChannel.getCompletedMessages());
         return completedTasks;
     }
@@ -1397,7 +1397,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getSmallMessageDroppedTasks()
     {
         Map<String, Long> droppedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             droppedTasks.put(entry.getKey().toString(false), entry.getValue().smallMessageChannel.getDroppedMessages());
         return droppedTasks;
     }
@@ -1405,7 +1405,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Integer> getGossipMessagePendingTasks()
     {
         Map<String, Integer> pendingTasks = new HashMap<String, Integer>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             pendingTasks.put(entry.getKey().toString(false), entry.getValue().gossipChannel.getPendingMessages());
         return pendingTasks;
     }
@@ -1413,7 +1413,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getGossipMessageCompletedTasks()
     {
         Map<String, Long> completedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             completedTasks.put(entry.getKey().toString(false), entry.getValue().gossipChannel.getCompletedMessages());
         return completedTasks;
     }
@@ -1421,7 +1421,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getGossipMessageDroppedTasks()
     {
         Map<String, Long> droppedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             droppedTasks.put(entry.getKey().toString(false), entry.getValue().gossipChannel.getDroppedMessages());
         return droppedTasks;
     }
@@ -1429,7 +1429,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Integer> getLargeMessagePendingTasksWithPort()
     {
         Map<String, Integer> pendingTasks = new HashMap<String, Integer>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             pendingTasks.put(entry.getKey().toString(), entry.getValue().largeMessageChannel.getPendingMessages());
         return pendingTasks;
     }
@@ -1437,7 +1437,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getLargeMessageCompletedTasksWithPort()
     {
         Map<String, Long> completedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             completedTasks.put(entry.getKey().toString(), entry.getValue().largeMessageChannel.getCompletedMessages());
         return completedTasks;
     }
@@ -1445,7 +1445,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getLargeMessageDroppedTasksWithPort()
     {
         Map<String, Long> droppedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             droppedTasks.put(entry.getKey().toString(), entry.getValue().largeMessageChannel.getDroppedMessages());
         return droppedTasks;
     }
@@ -1453,7 +1453,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Integer> getSmallMessagePendingTasksWithPort()
     {
         Map<String, Integer> pendingTasks = new HashMap<String, Integer>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             pendingTasks.put(entry.getKey().toString(), entry.getValue().smallMessageChannel.getPendingMessages());
         return pendingTasks;
     }
@@ -1461,7 +1461,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getSmallMessageCompletedTasksWithPort()
     {
         Map<String, Long> completedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             completedTasks.put(entry.getKey().toString(), entry.getValue().smallMessageChannel.getCompletedMessages());
         return completedTasks;
     }
@@ -1469,7 +1469,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getSmallMessageDroppedTasksWithPort()
     {
         Map<String, Long> droppedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             droppedTasks.put(entry.getKey().toString(), entry.getValue().smallMessageChannel.getDroppedMessages());
         return droppedTasks;
     }
@@ -1477,7 +1477,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Integer> getGossipMessagePendingTasksWithPort()
     {
         Map<String, Integer> pendingTasks = new HashMap<String, Integer>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             pendingTasks.put(entry.getKey().toString(), entry.getValue().gossipChannel.getPendingMessages());
         return pendingTasks;
     }
@@ -1485,7 +1485,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getGossipMessageCompletedTasksWithPort()
     {
         Map<String, Long> completedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             completedTasks.put(entry.getKey().toString(), entry.getValue().gossipChannel.getCompletedMessages());
         return completedTasks;
     }
@@ -1493,7 +1493,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getGossipMessageDroppedTasksWithPort()
     {
         Map<String, Long> droppedTasks = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             droppedTasks.put(entry.getKey().toString(), entry.getValue().gossipChannel.getDroppedMessages());
         return droppedTasks;
     }
@@ -1514,7 +1514,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getTimeoutsPerHost()
     {
         Map<String, Long> result = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
         {
             String ip = entry.getKey().toString(false);
             long recent = entry.getValue().getTimeouts();
@@ -1526,7 +1526,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getTimeoutsPerHostWithPort()
     {
         Map<String, Long> result = new HashMap<String, Long>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
         {
             String ip = entry.getKey().toString();
             long recent = entry.getValue().getTimeouts();
@@ -1538,7 +1538,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Double> getBackPressurePerHost()
     {
         Map<String, Double> map = new HashMap<>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             map.put(entry.getKey().toString(false), entry.getValue().getBackPressureState().getBackPressureRateLimit());
 
         return map;
@@ -1547,7 +1547,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Double> getBackPressurePerHostWithPort()
     {
         Map<String, Double> map = new HashMap<>(channelManagers.size());
-        for (Map.Entry<InetAddressAndPort, OutboundMessagingPool> entry : channelManagers.entrySet())
+        for (Map.Entry<VirtualEndpoint, OutboundMessagingPool> entry : channelManagers.entrySet())
             map.put(entry.getKey().toString(false), entry.getValue().getBackPressureState().getBackPressureRateLimit());
 
         return map;
@@ -1584,7 +1584,7 @@ public final class MessagingService implements MessagingServiceMBean
                                                    bounds.left.getPartitioner().getClass().getName()));
     }
 
-    private OutboundMessagingPool getMessagingConnection(InetAddressAndPort to)
+    private OutboundMessagingPool getMessagingConnection(VirtualEndpoint to)
     {
         OutboundMessagingPool pool = channelManagers.get(to);
         if (pool == null)
@@ -1594,8 +1594,8 @@ public final class MessagingService implements MessagingServiceMBean
             if (!DatabaseDescriptor.getInternodeAuthenticator().authenticate(to.address, port))
                 return null;
 
-            InetAddressAndPort preferredRemote = SystemKeyspace.getPreferredIP(to);
-            InetAddressAndPort local = FBUtilities.getLocalAddressAndPort();
+            VirtualEndpoint preferredRemote = SystemKeyspace.getPreferredIP(to);
+            VirtualEndpoint local = FBUtilities.getLocalAddressAndPort();
             ServerEncryptionOptions encryptionOptions = secure ? DatabaseDescriptor.getServerEncryptionOptions() : null;
             IInternodeAuthenticator authenticator = DatabaseDescriptor.getInternodeAuthenticator();
 
@@ -1610,13 +1610,13 @@ public final class MessagingService implements MessagingServiceMBean
         return pool;
     }
 
-    public int portFor(InetAddressAndPort addr)
+    public int portFor(VirtualEndpoint addr)
     {
         final boolean secure = isEncryptedConnection(addr);
         return portFor(addr, secure);
     }
 
-    private int portFor(InetAddressAndPort address, boolean secure)
+    private int portFor(VirtualEndpoint address, boolean secure)
     {
         if (!secure)
             return address.port;
@@ -1635,7 +1635,7 @@ public final class MessagingService implements MessagingServiceMBean
     }
 
     @VisibleForTesting
-    boolean isConnected(InetAddressAndPort address, MessageOut messageOut)
+    boolean isConnected(VirtualEndpoint address, MessageOut messageOut)
     {
         OutboundMessagingPool pool = channelManagers.get(address);
         if (pool == null)
@@ -1643,7 +1643,7 @@ public final class MessagingService implements MessagingServiceMBean
         return pool.getConnection(messageOut).isConnected();
     }
 
-    public static boolean isEncryptedConnection(InetAddressAndPort address)
+    public static boolean isEncryptedConnection(VirtualEndpoint address)
     {
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
         switch (DatabaseDescriptor.getServerEncryptionOptions().internode_encryption)

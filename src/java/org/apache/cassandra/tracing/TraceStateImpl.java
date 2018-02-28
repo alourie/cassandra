@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,6 @@ import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.exceptions.OverloadedException;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.WrappedRunnable;
@@ -54,7 +54,7 @@ public class TraceStateImpl extends TraceState
 
     private final Set<Future<?>> pendingFutures = ConcurrentHashMap.newKeySet();
 
-    public TraceStateImpl(InetAddressAndPort coordinator, UUID sessionId, Tracing.TraceType traceType)
+    public TraceStateImpl(VirtualEndpoint coordinator, UUID sessionId, Tracing.TraceType traceType)
     {
         super(coordinator, sessionId, traceType);
     }

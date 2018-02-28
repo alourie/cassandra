@@ -29,6 +29,7 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import com.google.common.net.InetAddresses;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -38,7 +39,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
@@ -49,7 +49,7 @@ import org.apache.cassandra.utils.UUIDGen;
 
 public class MessageInHandlerTest
 {
-    private static final InetAddressAndPort addr = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 0);
+    private static final VirtualEndpoint addr = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 0);
     private static final int MSG_VERSION = MessagingService.current_version;
 
     private static final int MSG_ID = 42;

@@ -17,7 +17,7 @@
  */
 package org.apache.cassandra.net;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * Interface meant to track the back-pressure state per replica host.
@@ -47,5 +47,5 @@ public interface BackPressureState
     /**
      * Returns the host this state refers to.
      */
-    InetAddressAndPort getHost();
+    VirtualEndpoint getHost();
 }

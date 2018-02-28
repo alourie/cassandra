@@ -23,9 +23,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.schema.Schema;
@@ -514,13 +514,13 @@ public class CreateTest extends CQLTester
         DatabaseDescriptor.setEndpointSnitch(new AbstractEndpointSnitch()
         {
             @Override
-            public String getRack(InetAddressAndPort endpoint) { return RACK1; }
+            public String getRack(VirtualEndpoint endpoint) { return RACK1; }
 
             @Override
-            public String getDatacenter(InetAddressAndPort endpoint) { return "us-east-1"; }
+            public String getDatacenter(VirtualEndpoint endpoint) { return "us-east-1"; }
 
             @Override
-            public int compareEndpoints(InetAddressAndPort target, InetAddressAndPort a1, InetAddressAndPort a2) { return 0; }
+            public int compareEndpoints(VirtualEndpoint target, VirtualEndpoint a1, VirtualEndpoint a2) { return 0; }
         });
 
         execute("CREATE KEYSPACE Foo WITH replication = { 'class' : 'NetworkTopologyStrategy', 'us-east-1' : 1 };");

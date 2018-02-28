@@ -24,7 +24,7 @@ import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.util.DataInputPlus.DataInputStreamPlus;
 import org.apache.cassandra.io.util.DataOutputStreamPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -78,9 +78,9 @@ public class SerializationsTest extends AbstractSerializationsTester
 
     private void testGossipDigestWrite() throws IOException
     {
-        Map<InetAddressAndPort, EndpointState> states = new HashMap<>();
-        states.put(InetAddressAndPort.getByName("127.0.0.1"), Statics.EndpointSt);
-        states.put(InetAddressAndPort.getByName("127.0.0.2"), Statics.EndpointSt);
+        Map<VirtualEndpoint, EndpointState> states = new HashMap<>();
+        states.put(VirtualEndpoint.getByName("127.0.0.1"), Statics.EndpointSt);
+        states.put(VirtualEndpoint.getByName("127.0.0.2"), Statics.EndpointSt);
         GossipDigestAck ack = new GossipDigestAck(Statics.Digests, states);
         GossipDigestAck2 ack2 = new GossipDigestAck2(states);
         GossipDigestSyn syn = new GossipDigestSyn("Not a real cluster name",

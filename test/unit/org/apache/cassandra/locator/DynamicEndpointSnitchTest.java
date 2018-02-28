@@ -40,7 +40,7 @@ public class DynamicEndpointSnitchTest
         DatabaseDescriptor.daemonInitialization();
     }
 
-    private static void setScores(DynamicEndpointSnitch dsnitch, int rounds, List<InetAddressAndPort> hosts, Integer... scores) throws InterruptedException
+    private static void setScores(DynamicEndpointSnitch dsnitch, int rounds, List<VirtualEndpoint> hosts, Integer... scores) throws InterruptedException
     {
         for (int round = 0; round < rounds; round++)
         {
@@ -57,16 +57,16 @@ public class DynamicEndpointSnitchTest
         StorageService.instance.unsafeInitialize();
         SimpleSnitch ss = new SimpleSnitch();
         DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
-        InetAddressAndPort self = FBUtilities.getBroadcastAddressAndPort();
-        InetAddressAndPort host1 = InetAddressAndPort.getByName("127.0.0.2");
-        InetAddressAndPort host2 = InetAddressAndPort.getByName("127.0.0.3");
-        InetAddressAndPort host3 = InetAddressAndPort.getByName("127.0.0.4");
-        InetAddressAndPort host4 = InetAddressAndPort.getByName("127.0.0.5");
-        List<InetAddressAndPort> hosts = Arrays.asList(host1, host2, host3);
+        VirtualEndpoint self = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint host1 = VirtualEndpoint.getByName("127.0.0.2");
+        VirtualEndpoint host2 = VirtualEndpoint.getByName("127.0.0.3");
+        VirtualEndpoint host3 = VirtualEndpoint.getByName("127.0.0.4");
+        VirtualEndpoint host4 = VirtualEndpoint.getByName("127.0.0.5");
+        List<VirtualEndpoint> hosts = Arrays.asList(host1, host2, host3);
 
         // first, make all hosts equal
         setScores(dsnitch, 1, hosts, 10, 10, 10);
-        List<InetAddressAndPort> order = Arrays.asList(host1, host2, host3);
+        List<VirtualEndpoint> order = Arrays.asList(host1, host2, host3);
         assertEquals(order, dsnitch.getSortedListByProximity(self, Arrays.asList(host1, host2, host3)));
 
         // make host1 a little worse

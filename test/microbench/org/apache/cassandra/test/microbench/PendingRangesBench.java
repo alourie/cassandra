@@ -25,7 +25,7 @@ import com.google.common.collect.Multimap;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.locator.PendingRangeMaps;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -50,7 +50,7 @@ public class PendingRangesBench
     PendingRangeMaps pendingRangeMaps;
     int maxToken = 256 * 100;
 
-    Multimap<Range<Token>, InetAddressAndPort> oldPendingRanges;
+    Multimap<Range<Token>, VirtualEndpoint> oldPendingRanges;
 
     private Range<Token> genRange(String left, String right)
     {
@@ -63,7 +63,7 @@ public class PendingRangesBench
         pendingRangeMaps = new PendingRangeMaps();
         oldPendingRanges = HashMultimap.create();
 
-        InetAddressAndPort[] addresses = { InetAddressAndPort.getByName("127.0.0.1"), InetAddressAndPort.getByName("127.0.0.2")};
+        VirtualEndpoint[] addresses = { VirtualEndpoint.getByName("127.0.0.1"), VirtualEndpoint.getByName("127.0.0.2")};
 
         for (int i = 0; i < maxToken; i++)
         {
@@ -97,8 +97,8 @@ public class PendingRangesBench
     {
         int randomToken = ThreadLocalRandom.current().nextInt(maxToken * 10 + 5);
         Token searchToken = new RandomPartitioner.BigIntegerToken(Integer.toString(randomToken));
-        Set<InetAddressAndPort> endpoints = new HashSet<>();
-        for (Map.Entry<Range<Token>, Collection<InetAddressAndPort>> entry : oldPendingRanges.asMap().entrySet())
+        Set<VirtualEndpoint> endpoints = new HashSet<>();
+        for (Map.Entry<Range<Token>, Collection<VirtualEndpoint>> entry : oldPendingRanges.asMap().entrySet())
         {
             if (entry.getKey().contains(searchToken))
                 endpoints.addAll(entry.getValue());

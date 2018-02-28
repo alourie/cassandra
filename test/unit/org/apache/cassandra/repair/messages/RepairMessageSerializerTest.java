@@ -21,12 +21,12 @@ package org.apache.cassandra.repair.messages;
 import java.io.IOException;
 
 import com.google.common.collect.Sets;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataOutputBuffer;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.UUIDGen;
 
@@ -58,10 +58,10 @@ public class RepairMessageSerializerTest
     @Test
     public void prepareConsistentRequest() throws Exception
     {
-        InetAddressAndPort coordinator = InetAddressAndPort.getByName("10.0.0.1");
-        InetAddressAndPort peer1 = InetAddressAndPort.getByName("10.0.0.2");
-        InetAddressAndPort peer2 = InetAddressAndPort.getByName("10.0.0.3");
-        InetAddressAndPort peer3 = InetAddressAndPort.getByName("10.0.0.4");
+        VirtualEndpoint coordinator = VirtualEndpoint.getByName("10.0.0.1");
+        VirtualEndpoint peer1 = VirtualEndpoint.getByName("10.0.0.2");
+        VirtualEndpoint peer2 = VirtualEndpoint.getByName("10.0.0.3");
+        VirtualEndpoint peer3 = VirtualEndpoint.getByName("10.0.0.4");
         RepairMessage expected = new PrepareConsistentRequest(UUIDGen.getTimeUUID(),
                                                               coordinator,
                                                               Sets.newHashSet(peer1, peer2, peer3));
@@ -73,7 +73,7 @@ public class RepairMessageSerializerTest
     public void prepareConsistentResponse() throws Exception
     {
         RepairMessage expected = new PrepareConsistentResponse(UUIDGen.getTimeUUID(),
-                                                               InetAddressAndPort.getByName("10.0.0.2"),
+                                                               VirtualEndpoint.getByName("10.0.0.2"),
                                                                true);
         RepairMessage actual = serdes(expected);
         Assert.assertEquals(expected, actual);
@@ -99,7 +99,7 @@ public class RepairMessageSerializerTest
     public void finalizePromise() throws Exception
     {
         RepairMessage expected = new FinalizePromise(UUIDGen.getTimeUUID(),
-                                                     InetAddressAndPort.getByName("10.0.0.2"),
+                                                     VirtualEndpoint.getByName("10.0.0.2"),
                                                      true);
         RepairMessage actual = serdes(expected);
         Assert.assertEquals(expected, actual);

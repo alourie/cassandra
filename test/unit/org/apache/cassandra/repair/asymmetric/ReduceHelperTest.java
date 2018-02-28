@@ -32,12 +32,12 @@ import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
 
 import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertEquals;
@@ -45,24 +45,24 @@ import static org.junit.Assert.assertTrue;
 
 public class ReduceHelperTest
 {
-    private static final InetAddressAndPort[] addresses;
-    private static final InetAddressAndPort A;
-    private static final InetAddressAndPort B;
-    private static final InetAddressAndPort C;
-    private static final InetAddressAndPort D;
-    private static final InetAddressAndPort E;
+    private static final VirtualEndpoint[] addresses;
+    private static final VirtualEndpoint A;
+    private static final VirtualEndpoint B;
+    private static final VirtualEndpoint C;
+    private static final VirtualEndpoint D;
+    private static final VirtualEndpoint E;
 
     static
     {
         try
         {
-            A = InetAddressAndPort.getByName("127.0.0.0");
-            B = InetAddressAndPort.getByName("127.0.0.1");
-            C = InetAddressAndPort.getByName("127.0.0.2");
-            D = InetAddressAndPort.getByName("127.0.0.3");
-            E = InetAddressAndPort.getByName("127.0.0.4");
+            A = VirtualEndpoint.getByName("127.0.0.0");
+            B = VirtualEndpoint.getByName("127.0.0.1");
+            C = VirtualEndpoint.getByName("127.0.0.2");
+            D = VirtualEndpoint.getByName("127.0.0.3");
+            E = VirtualEndpoint.getByName("127.0.0.4");
             // for diff creation in loops:
-            addresses = new InetAddressAndPort[]{ A, B, C, D, E };
+            addresses = new VirtualEndpoint[]{ A, B, C, D, E };
         }
         catch (UnknownHostException e)
         {
@@ -87,7 +87,7 @@ public class ReduceHelperTest
         C             x   x
         D                 =
          */
-        Map<InetAddressAndPort, HostDifferences> differences = new HashMap<>();
+        Map<VirtualEndpoint, HostDifferences> differences = new HashMap<>();
         for (int i = 0; i < 4; i++)
         {
             HostDifferences hostDiffs = new HostDifferences();
@@ -103,7 +103,7 @@ public class ReduceHelperTest
 
         }
         DifferenceHolder differenceHolder = new DifferenceHolder(differences);
-        Map<InetAddressAndPort, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
+        Map<VirtualEndpoint, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
 
         assertEquals(set(set(C), set(E,D)), streams(tracker.get(A)));
         assertEquals(set(set(C), set(E,D)), streams(tracker.get(B)));
@@ -111,7 +111,7 @@ public class ReduceHelperTest
         assertEquals(set(set(A,B), set(C)), streams(tracker.get(D)));
         assertEquals(set(set(A,B), set(C)), streams(tracker.get(E)));
 
-        ImmutableMap<InetAddressAndPort, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> y);
+        ImmutableMap<VirtualEndpoint, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> y);
 
         HostDifferences n0 = reduced.get(A);
         assertEquals(0, n0.get(A).size());
@@ -161,7 +161,7 @@ public class ReduceHelperTest
         C             x   x
         D                 =
          */
-        Map<InetAddressAndPort, HostDifferences> differences = new HashMap<>();
+        Map<VirtualEndpoint, HostDifferences> differences = new HashMap<>();
         for (int i = 0; i < 4; i++)
         {
             HostDifferences hostDifferences = new HostDifferences();
@@ -177,7 +177,7 @@ public class ReduceHelperTest
         }
 
         DifferenceHolder differenceHolder = new DifferenceHolder(differences);
-        Map<InetAddressAndPort, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
+        Map<VirtualEndpoint, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
         assertEquals(set(set(C), set(E, D)), streams(tracker.get(A)));
         assertEquals(set(set(C), set(E, D)), streams(tracker.get(B)));
         assertEquals(set(set(A, B), set(E, D)), streams(tracker.get(C)));
@@ -185,7 +185,7 @@ public class ReduceHelperTest
         assertEquals(set(set(A, B), set(C)), streams(tracker.get(E)));
 
         // if there is an option, never stream from node 1:
-        ImmutableMap<InetAddressAndPort, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x,y) -> Sets.difference(y, set(B)));
+        ImmutableMap<VirtualEndpoint, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> Sets.difference(y, set(B)));
 
         HostDifferences n0 = reduced.get(A);
         assertEquals(0, n0.get(A).size());
@@ -221,7 +221,7 @@ public class ReduceHelperTest
         assertEquals(0, n4.get(E).size());
     }
 
-    private Iterable<Set<InetAddressAndPort>> streams(IncomingRepairStreamTracker incomingRepairStreamTracker)
+    private Iterable<Set<VirtualEndpoint>> streams(IncomingRepairStreamTracker incomingRepairStreamTracker)
     {
         return incomingRepairStreamTracker.getIncoming().values().iterator().next().allStreams();
     }
@@ -246,12 +246,12 @@ public class ReduceHelperTest
          B streams (0, 50] from {C}, (50, 100] from {A, C}
          C streams (0, 50] from {A, B}, (50, 100] from B
          */
-        Map<InetAddressAndPort, HostDifferences> differences = new HashMap<>();
+        Map<VirtualEndpoint, HostDifferences> differences = new HashMap<>();
         addDifference(A, differences, B, list(range(50, 100)));
         addDifference(A, differences, C, list(range(0, 50)));
         addDifference(B, differences, C, list(range(0, 100)));
         DifferenceHolder differenceHolder = new DifferenceHolder(differences);
-        Map<InetAddressAndPort, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
+        Map<VirtualEndpoint, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
         assertEquals(set(set(C)), tracker.get(A).getIncoming().get(range(0, 50)).allStreams());
         assertEquals(set(set(B)), tracker.get(A).getIncoming().get(range(50, 100)).allStreams());
         assertEquals(set(set(C)), tracker.get(B).getIncoming().get(range(0, 50)).allStreams());
@@ -259,7 +259,7 @@ public class ReduceHelperTest
         assertEquals(set(set(A,B)), tracker.get(C).getIncoming().get(range(0, 50)).allStreams());
         assertEquals(set(set(B)), tracker.get(C).getIncoming().get(range(50, 100)).allStreams());
 
-        ImmutableMap<InetAddressAndPort, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> y);
+        ImmutableMap<VirtualEndpoint, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> y);
 
         HostDifferences n0 = reduced.get(A);
 
@@ -310,13 +310,13 @@ public class ReduceHelperTest
          B == C on (5, 10], (40, 45]
          */
 
-        Map<InetAddressAndPort, HostDifferences> differences = new HashMap<>();
+        Map<VirtualEndpoint, HostDifferences> differences = new HashMap<>();
         addDifference(A, differences, B, list(range(5, 45)));
         addDifference(A, differences, C, list(range(0, 10), range(40,50)));
         addDifference(B, differences, C, list(range(0, 5), range(10,40), range(45,50)));
 
         DifferenceHolder differenceHolder = new DifferenceHolder(differences);
-        Map<InetAddressAndPort, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
+        Map<VirtualEndpoint, IncomingRepairStreamTracker> tracker = ReduceHelper.createIncomingRepairStreamTrackers(differenceHolder);
 
         Map<Range<Token>, StreamFromOptions> ranges = tracker.get(A).getIncoming();
         assertEquals(5, ranges.size());
@@ -342,21 +342,21 @@ public class ReduceHelperTest
         assertEquals(set(set(B)), ranges.get(range(10, 40)).allStreams());
         assertEquals(set(set(A)), ranges.get(range(40, 45)).allStreams());
         assertEquals(set(set(A,B)), ranges.get(range(45, 50)).allStreams());
-        ImmutableMap<InetAddressAndPort, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> y);
+        ImmutableMap<VirtualEndpoint, HostDifferences> reduced = ReduceHelper.reduce(differenceHolder, (x, y) -> y);
 
         assertNoOverlap(A, reduced.get(A), list(range(0, 50)));
         assertNoOverlap(B, reduced.get(B), list(range(0, 50)));
         assertNoOverlap(C, reduced.get(C), list(range(0, 50)));
     }
 
-    private void assertNoOverlap(InetAddressAndPort incomingNode, HostDifferences node, List<Range<Token>> expectedAfterNormalize)
+    private void assertNoOverlap(VirtualEndpoint incomingNode, HostDifferences node, List<Range<Token>> expectedAfterNormalize)
     {
         Set<Range<Token>> allRanges = new HashSet<>();
-        Set<InetAddressAndPort> remoteNodes = Sets.newHashSet(A,B,C);
+        Set<VirtualEndpoint> remoteNodes = Sets.newHashSet(A,B,C);
         remoteNodes.remove(incomingNode);
-        Iterator<InetAddressAndPort> iter = remoteNodes.iterator();
+        Iterator<VirtualEndpoint> iter = remoteNodes.iterator();
         allRanges.addAll(node.get(iter.next()));
-        InetAddressAndPort i = iter.next();
+        VirtualEndpoint i = iter.next();
         for (Range<Token> r : node.get(i))
         {
             for (Range<Token> existing : allRanges)
@@ -377,14 +377,14 @@ public class ReduceHelperTest
         return ranges;
     }
 
-    private static Set<InetAddressAndPort> set(InetAddressAndPort ... elem)
+    private static Set<VirtualEndpoint> set(VirtualEndpoint... elem)
     {
         return Sets.newHashSet(elem);
     }
     @SafeVarargs
-    private static Set<Set<InetAddressAndPort>> set(Set<InetAddressAndPort> ... elem)
+    private static Set<Set<VirtualEndpoint>> set(Set<VirtualEndpoint> ... elem)
     {
-        Set<Set<InetAddressAndPort>> ret = Sets.newHashSet();
+        Set<Set<VirtualEndpoint>> ret = Sets.newHashSet();
         ret.addAll(Arrays.asList(elem));
         return ret;
     }
@@ -416,7 +416,7 @@ public class ReduceHelperTest
         assertTrue(r1.size() > 0 ^ r2.size() > 0);
     }
 
-    private void addDifference(InetAddressAndPort host1, Map<InetAddressAndPort, HostDifferences> differences, InetAddressAndPort host2, List<Range<Token>> ranges)
+    private void addDifference(VirtualEndpoint host1, Map<VirtualEndpoint, HostDifferences> differences, VirtualEndpoint host2, List<Range<Token>> ranges)
     {
         differences.computeIfAbsent(host1, (x) -> new HostDifferences()).add(host2, ranges);
     }

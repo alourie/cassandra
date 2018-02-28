@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.google.common.base.Stopwatch;
 import org.slf4j.helpers.MessageFormatter;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventNotifier;
@@ -40,7 +40,7 @@ import org.apache.cassandra.utils.progress.ProgressListener;
 public abstract class TraceState implements ProgressEventNotifier
 {
     public final UUID sessionId;
-    public final InetAddressAndPort coordinator;
+    public final VirtualEndpoint coordinator;
     public final Stopwatch watch;
     public final ByteBuffer sessionIdBytes;
     public final Tracing.TraceType traceType;
@@ -63,7 +63,7 @@ public abstract class TraceState implements ProgressEventNotifier
     // See CASSANDRA-7626 for more details.
     private final AtomicInteger references = new AtomicInteger(1);
 
-    protected TraceState(InetAddressAndPort coordinator, UUID sessionId, Tracing.TraceType traceType)
+    protected TraceState(VirtualEndpoint coordinator, UUID sessionId, Tracing.TraceType traceType)
     {
         assert coordinator != null;
         assert sessionId != null;

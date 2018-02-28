@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentMap;
 
 
 import com.codahale.metrics.Counter;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
@@ -34,7 +34,7 @@ public class StreamingMetrics
 {
     public static final String TYPE_NAME = "Streaming";
 
-    private static final ConcurrentMap<InetAddressAndPort, StreamingMetrics> instances = new NonBlockingHashMap<>();
+    private static final ConcurrentMap<VirtualEndpoint, StreamingMetrics> instances = new NonBlockingHashMap<>();
 
     public static final Counter activeStreamsOutbound = Metrics.counter(DefaultNameFactory.createMetricName(TYPE_NAME, "ActiveOutboundStreams", null));
     public static final Counter totalIncomingBytes = Metrics.counter(DefaultNameFactory.createMetricName(TYPE_NAME, "TotalIncomingBytes", null));
@@ -42,7 +42,7 @@ public class StreamingMetrics
     public final Counter incomingBytes;
     public final Counter outgoingBytes;
 
-    public static StreamingMetrics get(InetAddressAndPort ip)
+    public static StreamingMetrics get(VirtualEndpoint ip)
     {
        StreamingMetrics metrics = instances.get(ip);
        if (metrics == null)
@@ -53,7 +53,7 @@ public class StreamingMetrics
        return metrics;
     }
 
-    public StreamingMetrics(final InetAddressAndPort peer)
+    public StreamingMetrics(final VirtualEndpoint peer)
     {
         MetricNameFactory factory = new DefaultNameFactory("Streaming", peer.toString().replace(':', '.'));
         incomingBytes = Metrics.counter(factory.createMetricName("IncomingBytes"));

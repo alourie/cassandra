@@ -19,8 +19,6 @@
 package org.apache.cassandra.net.async;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -31,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +42,6 @@ import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.async.NettyFactory.Mode;
@@ -259,7 +257,7 @@ public class OutboundMessagingConnection
         logger.debug("connection attempt {} to {}", connectAttemptCount, connectionId);
 
 
-        InetAddressAndPort remote = connectionId.remote();
+        VirtualEndpoint remote = connectionId.remote();
         if (!authenticator.authenticate(remote.address, remote.port))
         {
             logger.warn("Internode auth failed connecting to {}", connectionId);
@@ -285,7 +283,7 @@ public class OutboundMessagingConnection
     }
 
     @VisibleForTesting
-    static boolean shouldCompressConnection(InetAddressAndPort localHost, InetAddressAndPort remoteHost)
+    static boolean shouldCompressConnection(VirtualEndpoint localHost, VirtualEndpoint remoteHost)
     {
         return (DatabaseDescriptor.internodeCompression() == Config.InternodeCompression.all)
                || ((DatabaseDescriptor.internodeCompression() == Config.InternodeCompression.dc) && !isLocalDC(localHost, remoteHost));
@@ -356,7 +354,7 @@ public class OutboundMessagingConnection
         return null;
     }
 
-    static boolean isLocalDC(InetAddressAndPort localHost, InetAddressAndPort remoteHost)
+    static boolean isLocalDC(VirtualEndpoint localHost, VirtualEndpoint remoteHost)
     {
         String remoteDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(remoteHost);
         String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(localHost);
@@ -586,7 +584,7 @@ public class OutboundMessagingConnection
      * Any outstanding messages in the existing channel will still be sent to the previous address (we won't/can't move them from
      * one channel to another).
      */
-    void reconnectWithNewIp(InetAddressAndPort newAddr)
+    void reconnectWithNewIp(VirtualEndpoint newAddr)
     {
         State currentState = state.get();
 

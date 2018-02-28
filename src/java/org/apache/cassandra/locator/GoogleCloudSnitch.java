@@ -45,7 +45,7 @@ public class GoogleCloudSnitch extends AbstractNetworkTopologySnitch
     protected static final String ZONE_NAME_QUERY_URL = "http://metadata.google.internal/computeMetadata/v1/instance/zone";
     private static final String DEFAULT_DC = "UNKNOWN-DC";
     private static final String DEFAULT_RACK = "UNKNOWN-RACK";
-    private Map<InetAddressAndPort, Map<String, String>> savedEndpoints;
+    private Map<VirtualEndpoint, Map<String, String>> savedEndpoints;
     protected String gceZone;
     protected String gceRegion;
 
@@ -93,7 +93,7 @@ public class GoogleCloudSnitch extends AbstractNetworkTopologySnitch
         }
     }
 
-    public String getRack(InetAddressAndPort endpoint)
+    public String getRack(VirtualEndpoint endpoint)
     {
         if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return gceZone;
@@ -109,7 +109,7 @@ public class GoogleCloudSnitch extends AbstractNetworkTopologySnitch
         return state.getApplicationState(ApplicationState.RACK).value;
     }
 
-    public String getDatacenter(InetAddressAndPort endpoint)
+    public String getDatacenter(VirtualEndpoint endpoint)
     {
         if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return gceRegion;

@@ -33,7 +33,7 @@ import org.apache.commons.cli.Options;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.sstable.SSTableLoader;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.security.SSLFactory;
 import org.apache.cassandra.streaming.*;
 import org.apache.cassandra.utils.FBUtilities;
@@ -126,7 +126,7 @@ public class BulkLoader
         private long peak = 0;
         private int totalFiles = 0;
 
-        private final Multimap<InetAddressAndPort, SessionInfo> sessionsByHost = HashMultimap.create();
+        private final Multimap<VirtualEndpoint, SessionInfo> sessionsByHost = HashMultimap.create();
 
         public ProgressIndicator()
         {
@@ -167,7 +167,7 @@ public class BulkLoader
 
                 boolean updateTotalFiles = totalFiles == 0;
                 // recalculate progress across all sessions in all hosts and display
-                for (InetAddressAndPort peer : sessionsByHost.keySet())
+                for (VirtualEndpoint peer : sessionsByHost.keySet())
                 {
                     sb.append("[").append(peer).append("]");
 

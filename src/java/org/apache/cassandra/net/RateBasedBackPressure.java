@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.ParameterizedClass;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.utils.NoSpamLogger;
 import org.apache.cassandra.utils.SystemTimeSource;
 import org.apache.cassandra.utils.TimeSource;
@@ -256,7 +256,7 @@ public class RateBasedBackPressure implements BackPressureStrategy<RateBasedBack
     }
 
     @Override
-    public RateBasedBackPressureState newState(InetAddressAndPort host)
+    public RateBasedBackPressureState newState(VirtualEndpoint host)
     {
         return new RateBasedBackPressureState(host, timeSource, windowSize);
     }

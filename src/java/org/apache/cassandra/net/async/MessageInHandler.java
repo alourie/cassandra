@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,6 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import org.apache.cassandra.db.monitoring.ApproximateTime;
 import org.apache.cassandra.exceptions.UnknownTableException;
 import org.apache.cassandra.io.util.DataInputBuffer;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
@@ -81,7 +81,7 @@ class MessageInHandler extends ByteToMessageDecoder
      */
     private static final int SECOND_SECTION_BYTE_COUNT = 8;
 
-    private final InetAddressAndPort peer;
+    private final VirtualEndpoint peer;
     private final int messagingVersion;
 
     /**
@@ -93,12 +93,12 @@ class MessageInHandler extends ByteToMessageDecoder
     private State state;
     private MessageHeader messageHeader;
 
-    MessageInHandler(InetAddressAndPort peer, int messagingVersion)
+    MessageInHandler(VirtualEndpoint peer, int messagingVersion)
     {
         this (peer, messagingVersion, MESSAGING_SERVICE_CONSUMER);
     }
 
-    MessageInHandler(InetAddressAndPort peer, int messagingVersion, BiConsumer<MessageIn, Integer> messageConsumer)
+    MessageInHandler(VirtualEndpoint peer, int messagingVersion, BiConsumer<MessageIn, Integer> messageConsumer)
     {
         this.peer = peer;
         this.messagingVersion = messagingVersion;
@@ -303,7 +303,7 @@ class MessageInHandler extends ByteToMessageDecoder
     {
         int messageId;
         long constructionTime;
-        InetAddressAndPort from;
+        VirtualEndpoint from;
         MessagingService.Verb verb;
         int payloadSize;
 

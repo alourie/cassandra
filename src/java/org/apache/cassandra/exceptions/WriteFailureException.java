@@ -21,13 +21,13 @@ import java.util.Map;
 
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.WriteType;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public class WriteFailureException extends RequestFailureException
 {
     public final WriteType writeType;
 
-    public WriteFailureException(ConsistencyLevel consistency, int received, int blockFor, WriteType writeType, Map<InetAddressAndPort, RequestFailureReason> failureReasonByEndpoint)
+    public WriteFailureException(ConsistencyLevel consistency, int received, int blockFor, WriteType writeType, Map<VirtualEndpoint, RequestFailureReason> failureReasonByEndpoint)
     {
         super(ExceptionCode.WRITE_FAILURE, consistency, received, blockFor, failureReasonByEndpoint);
         this.writeType = writeType;

@@ -71,8 +71,8 @@ public class GoogleCloudSnitchTest
     {
         az = "us-central1-a";
         GoogleCloudSnitch snitch = new TestGoogleCloudSnitch();
-        InetAddressAndPort local = InetAddressAndPort.getByName("127.0.0.1");
-        InetAddressAndPort nonlocal = InetAddressAndPort.getByName("127.0.0.7");
+        VirtualEndpoint local = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint nonlocal = VirtualEndpoint.getByName("127.0.0.7");
 
         Gossiper.instance.addSavedEndpoint(nonlocal);
         Map<ApplicationState, VersionedValue> stateMap = new EnumMap<>(ApplicationState.class);
@@ -92,7 +92,7 @@ public class GoogleCloudSnitchTest
     {
         az = "asia-east1-a";
         GoogleCloudSnitch snitch = new TestGoogleCloudSnitch();
-        InetAddressAndPort local = InetAddressAndPort.getByName("127.0.0.1");
+        VirtualEndpoint local = VirtualEndpoint.getByName("127.0.0.1");
         assertEquals("asia-east1", snitch.getDatacenter(local));
         assertEquals("a", snitch.getRack(local));
     }

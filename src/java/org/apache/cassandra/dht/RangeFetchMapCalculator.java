@@ -19,10 +19,8 @@
 package org.apache.cassandra.dht;
 
 import java.math.BigInteger;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -32,7 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.utils.FBUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +71,7 @@ public class RangeFetchMapCalculator
 {
     private static final Logger logger = LoggerFactory.getLogger(RangeFetchMapCalculator.class);
     private static final long TRIVIAL_RANGE_LIMIT = 1000;
-    private final Multimap<Range<Token>, InetAddressAndPort> rangesWithSources;
+    private final Multimap<Range<Token>, VirtualEndpoint> rangesWithSources;
     private final Collection<RangeStreamer.ISourceFilter> sourceFilters;
     private final String keyspace;
     //We need two Vertices to act as source and destination in the algorithm
@@ -81,7 +79,7 @@ public class RangeFetchMapCalculator
     private final Vertex destinationVertex = OuterVertex.getDestinationVertex();
     private final Set<Range<Token>> trivialRanges;
 
-    public RangeFetchMapCalculator(Multimap<Range<Token>, InetAddressAndPort> rangesWithSources,
+    public RangeFetchMapCalculator(Multimap<Range<Token>, VirtualEndpoint> rangesWithSources,
                                    Collection<RangeStreamer.ISourceFilter> sourceFilters,
                                    String keyspace)
     {
@@ -109,16 +107,16 @@ public class RangeFetchMapCalculator
         return false;
     }
 
-    public Multimap<InetAddressAndPort, Range<Token>> getRangeFetchMap()
+    public Multimap<VirtualEndpoint, Range<Token>> getRangeFetchMap()
     {
-        Multimap<InetAddressAndPort, Range<Token>> fetchMap = HashMultimap.create();
+        Multimap<VirtualEndpoint, Range<Token>> fetchMap = HashMultimap.create();
         fetchMap.putAll(getRangeFetchMapForNonTrivialRanges());
         fetchMap.putAll(getRangeFetchMapForTrivialRanges(fetchMap));
         return fetchMap;
     }
 
     @VisibleForTesting
-    Multimap<InetAddressAndPort, Range<Token>> getRangeFetchMapForNonTrivialRanges()
+    Multimap<VirtualEndpoint, Range<Token>> getRangeFetchMapForNonTrivialRanges()
     {
         //Get the graph with edges between ranges and their source endpoints
         MutableCapacityGraph<Vertex, Integer> graph = getGraph();
@@ -149,19 +147,19 @@ public class RangeFetchMapCalculator
     }
 
     @VisibleForTesting
-    Multimap<InetAddressAndPort, Range<Token>> getRangeFetchMapForTrivialRanges(Multimap<InetAddressAndPort, Range<Token>> optimisedMap)
+    Multimap<VirtualEndpoint, Range<Token>> getRangeFetchMapForTrivialRanges(Multimap<VirtualEndpoint, Range<Token>> optimisedMap)
     {
-        Multimap<InetAddressAndPort, Range<Token>> fetchMap = HashMultimap.create();
+        Multimap<VirtualEndpoint, Range<Token>> fetchMap = HashMultimap.create();
         for (Range<Token> trivialRange : trivialRanges)
         {
             boolean added = false;
             boolean localDCCheck = true;
             while (!added)
             {
-                List<InetAddressAndPort> srcs = new ArrayList<>(rangesWithSources.get(trivialRange));
+                List<VirtualEndpoint> srcs = new ArrayList<>(rangesWithSources.get(trivialRange));
                 // sort with the endpoint having the least number of streams first:
                 srcs.sort(Comparator.comparingInt(o -> optimisedMap.get(o).size()));
-                for (InetAddressAndPort src : srcs)
+                for (VirtualEndpoint src : srcs)
                 {
                     if (passFilters(src, localDCCheck))
                     {
@@ -203,9 +201,9 @@ public class RangeFetchMapCalculator
      * @param result Flow algorithm result
      * @return  Multi Map of Machine to Ranges
      */
-    private Multimap<InetAddressAndPort, Range<Token>> getRangeFetchMapFromGraphResult(MutableCapacityGraph<Vertex, Integer> graph, MaximumFlowAlgorithmResult<Integer, CapacityEdge<Vertex, Integer>> result)
+    private Multimap<VirtualEndpoint, Range<Token>> getRangeFetchMapFromGraphResult(MutableCapacityGraph<Vertex, Integer> graph, MaximumFlowAlgorithmResult<Integer, CapacityEdge<Vertex, Integer>> result)
     {
-        final Multimap<InetAddressAndPort, Range<Token>> rangeFetchMapMap = HashMultimap.create();
+        final Multimap<VirtualEndpoint, Range<Token>> rangeFetchMapMap = HashMultimap.create();
         if(result == null)
             return rangeFetchMapMap;
         final Function<CapacityEdge<Vertex, Integer>, Integer> flowFunction = result.calcFlowFunction();
@@ -347,7 +345,7 @@ public class RangeFetchMapCalculator
     private boolean addEndpoints(MutableCapacityGraph<Vertex, Integer> capacityGraph, RangeVertex rangeVertex, boolean localDCCheck)
     {
         boolean sourceFound = false;
-        for (InetAddressAndPort endpoint : rangesWithSources.get(rangeVertex.getRange()))
+        for (VirtualEndpoint endpoint : rangesWithSources.get(rangeVertex.getRange()))
         {
             if (passFilters(endpoint, localDCCheck))
             {
@@ -364,7 +362,7 @@ public class RangeFetchMapCalculator
         return sourceFound;
     }
 
-    private boolean isInLocalDC(InetAddressAndPort endpoint)
+    private boolean isInLocalDC(VirtualEndpoint endpoint)
     {
         return DatabaseDescriptor.getLocalDataCenter().equals(DatabaseDescriptor.getEndpointSnitch().getDatacenter(endpoint));
     }
@@ -375,7 +373,7 @@ public class RangeFetchMapCalculator
      * @param localDCCheck Allow endpoints with local DC
      * @return   True if filters pass this endpoint
      */
-    private boolean passFilters(final InetAddressAndPort endpoint, boolean localDCCheck)
+    private boolean passFilters(final VirtualEndpoint endpoint, boolean localDCCheck)
     {
         for (RangeStreamer.ISourceFilter filter : sourceFilters)
         {
@@ -411,15 +409,15 @@ public class RangeFetchMapCalculator
      */
     private static class EndpointVertex extends Vertex
     {
-        private final InetAddressAndPort endpoint;
+        private final VirtualEndpoint endpoint;
 
-        public EndpointVertex(InetAddressAndPort endpoint)
+        public EndpointVertex(VirtualEndpoint endpoint)
         {
             assert endpoint != null;
             this.endpoint = endpoint;
         }
 
-        public InetAddressAndPort getEndpoint()
+        public VirtualEndpoint getEndpoint()
         {
             return endpoint;
         }

@@ -52,19 +52,19 @@ public class DynamicEndpointSnitchLongTest
             StorageService.instance.unsafeInitialize();
             SimpleSnitch ss = new SimpleSnitch();
             DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
-            InetAddressAndPort self = FBUtilities.getBroadcastAddressAndPort();
+            VirtualEndpoint self = FBUtilities.getBroadcastAddressAndPort();
 
-            List<InetAddressAndPort> hosts = new ArrayList<>();
+            List<VirtualEndpoint> hosts = new ArrayList<>();
             // We want a big list of hosts so  sorting takes time, making it much more likely to reproduce the
             // problem we're looking for.
             for (int i = 0; i < 100; i++)
                 for (int j = 0; j < 256; j++)
-                    hosts.add(InetAddressAndPort.getByAddress(new byte[]{ 127, 0, (byte)i, (byte)j}));
+                    hosts.add(VirtualEndpoint.getByAddress(new byte[]{ 127, 0, (byte)i, (byte)j}));
 
             ScoreUpdater updater = new ScoreUpdater(dsnitch, hosts);
             updater.start();
 
-            List<InetAddressAndPort> result = null;
+            List<VirtualEndpoint> result = null;
             for (int i = 0; i < ITERATIONS; i++)
                 result = dsnitch.getSortedListByProximity(self, hosts);
 
@@ -84,10 +84,10 @@ public class DynamicEndpointSnitchLongTest
         public volatile boolean stopped;
 
         private final DynamicEndpointSnitch dsnitch;
-        private final List<InetAddressAndPort> hosts;
+        private final List<VirtualEndpoint> hosts;
         private final Random random = new Random();
 
-        public ScoreUpdater(DynamicEndpointSnitch dsnitch, List<InetAddressAndPort> hosts)
+        public ScoreUpdater(DynamicEndpointSnitch dsnitch, List<VirtualEndpoint> hosts)
         {
             this.dsnitch = dsnitch;
             this.hosts = hosts;
@@ -97,7 +97,7 @@ public class DynamicEndpointSnitchLongTest
         {
             while (!stopped)
             {
-                InetAddressAndPort host = hosts.get(random.nextInt(hosts.size()));
+                VirtualEndpoint host = hosts.get(random.nextInt(hosts.size()));
                 int score = random.nextInt(SCORE_RANGE);
                 dsnitch.receiveTiming(host, score);
             }

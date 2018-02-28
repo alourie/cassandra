@@ -28,16 +28,16 @@ public abstract class AbstractNetworkTopologySnitch extends AbstractEndpointSnit
      * @param endpoint a specified endpoint
      * @return string of rack
      */
-    abstract public String getRack(InetAddressAndPort endpoint);
+    abstract public String getRack(VirtualEndpoint endpoint);
 
     /**
      * Return the data center for which an endpoint resides in
      * @param endpoint a specified endpoint
      * @return string of data center
      */
-    abstract public String getDatacenter(InetAddressAndPort endpoint);
+    abstract public String getDatacenter(VirtualEndpoint endpoint);
 
-    public int compareEndpoints(InetAddressAndPort address, InetAddressAndPort a1, InetAddressAndPort a2)
+    public int compareEndpoints(VirtualEndpoint address, VirtualEndpoint a1, VirtualEndpoint a2)
     {
         if (address.equals(a1) && !address.equals(a2))
             return -1;

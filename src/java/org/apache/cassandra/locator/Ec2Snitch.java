@@ -45,7 +45,7 @@ public class Ec2Snitch extends AbstractNetworkTopologySnitch
     protected static final String ZONE_NAME_QUERY_URL = "http://169.254.169.254/latest/meta-data/placement/availability-zone";
     private static final String DEFAULT_DC = "UNKNOWN-DC";
     private static final String DEFAULT_RACK = "UNKNOWN-RACK";
-    private Map<InetAddressAndPort, Map<String, String>> savedEndpoints;
+    private Map<VirtualEndpoint, Map<String, String>> savedEndpoints;
     protected String ec2zone;
     protected String ec2region;
 
@@ -91,7 +91,7 @@ public class Ec2Snitch extends AbstractNetworkTopologySnitch
         }
     }
 
-    public String getRack(InetAddressAndPort endpoint)
+    public String getRack(VirtualEndpoint endpoint)
     {
         if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return ec2zone;
@@ -107,7 +107,7 @@ public class Ec2Snitch extends AbstractNetworkTopologySnitch
         return state.getApplicationState(ApplicationState.RACK).value;
     }
 
-    public String getDatacenter(InetAddressAndPort endpoint)
+    public String getDatacenter(VirtualEndpoint endpoint)
     {
         if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return ec2region;

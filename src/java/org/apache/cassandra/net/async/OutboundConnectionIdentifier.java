@@ -18,10 +18,7 @@
 
 package org.apache.cassandra.net.async;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * Identifies an outbound messaging connection.
@@ -40,24 +37,24 @@ public class OutboundConnectionIdentifier
     /**
      * Memoization of the local node's broadcast address.
      */
-    private final InetAddressAndPort localAddr;
+    private final VirtualEndpoint localAddr;
 
     /**
      * The address by which the remote is identified. This may be different from {@link #remoteConnectionAddr} for
      * something like EC2 public IP address which need to be used for communication between EC2 regions.
      */
-    private final InetAddressAndPort remoteAddr;
+    private final VirtualEndpoint remoteAddr;
 
     /**
      * The address to which we're connecting to the node (often the same as {@link #remoteAddr} but not always).
      */
-    private final InetAddressAndPort remoteConnectionAddr;
+    private final VirtualEndpoint remoteConnectionAddr;
 
     private final ConnectionType connectionType;
 
-    private OutboundConnectionIdentifier(InetAddressAndPort localAddr,
-                                         InetAddressAndPort remoteAddr,
-                                         InetAddressAndPort remoteConnectionAddr,
+    private OutboundConnectionIdentifier(VirtualEndpoint localAddr,
+                                         VirtualEndpoint remoteAddr,
+                                         VirtualEndpoint remoteConnectionAddr,
                                          ConnectionType connectionType)
     {
         this.localAddr = localAddr;
@@ -66,8 +63,8 @@ public class OutboundConnectionIdentifier
         this.connectionType = connectionType;
     }
 
-    private OutboundConnectionIdentifier(InetAddressAndPort localAddr,
-                                         InetAddressAndPort remoteAddr,
+    private OutboundConnectionIdentifier(VirtualEndpoint localAddr,
+                                         VirtualEndpoint remoteAddr,
                                          ConnectionType connectionType)
     {
         this(localAddr, remoteAddr, remoteAddr, connectionType);
@@ -77,7 +74,7 @@ public class OutboundConnectionIdentifier
      * Creates an identifier for a small message connection and using the remote "identifying" address as its connection
      * address.
      */
-    public static OutboundConnectionIdentifier small(InetAddressAndPort localAddr, InetAddressAndPort remoteAddr)
+    public static OutboundConnectionIdentifier small(VirtualEndpoint localAddr, VirtualEndpoint remoteAddr)
     {
         return new OutboundConnectionIdentifier(localAddr, remoteAddr, ConnectionType.SMALL_MESSAGE);
     }
@@ -86,7 +83,7 @@ public class OutboundConnectionIdentifier
      * Creates an identifier for a large message connection and using the remote "identifying" address as its connection
      * address.
      */
-    public static OutboundConnectionIdentifier large(InetAddressAndPort localAddr, InetAddressAndPort remoteAddr)
+    public static OutboundConnectionIdentifier large(VirtualEndpoint localAddr, VirtualEndpoint remoteAddr)
     {
         return new OutboundConnectionIdentifier(localAddr, remoteAddr, ConnectionType.LARGE_MESSAGE);
     }
@@ -95,7 +92,7 @@ public class OutboundConnectionIdentifier
      * Creates an identifier for a gossip connection and using the remote "identifying" address as its connection
      * address.
      */
-    public static OutboundConnectionIdentifier gossip(InetAddressAndPort localAddr, InetAddressAndPort remoteAddr)
+    public static OutboundConnectionIdentifier gossip(VirtualEndpoint localAddr, VirtualEndpoint remoteAddr)
     {
         return new OutboundConnectionIdentifier(localAddr, remoteAddr, ConnectionType.GOSSIP);
     }
@@ -104,7 +101,7 @@ public class OutboundConnectionIdentifier
      * Creates an identifier for a gossip connection and using the remote "identifying" address as its connection
      * address.
      */
-    public static OutboundConnectionIdentifier stream(InetAddressAndPort localAddr, InetAddressAndPort remoteAddr)
+    public static OutboundConnectionIdentifier stream(VirtualEndpoint localAddr, VirtualEndpoint remoteAddr)
     {
         return new OutboundConnectionIdentifier(localAddr, remoteAddr, ConnectionType.STREAM);
     }
@@ -117,21 +114,21 @@ public class OutboundConnectionIdentifier
      * @return a newly created connection identifier that differs from this one only by using {@code remoteConnectionAddr}
      * as connection address to the remote.
      */
-    public OutboundConnectionIdentifier withNewConnectionAddress(InetAddressAndPort remoteConnectionAddr)
+    public OutboundConnectionIdentifier withNewConnectionAddress(VirtualEndpoint remoteConnectionAddr)
     {
         return new OutboundConnectionIdentifier(localAddr, remoteAddr, remoteConnectionAddr, connectionType);
     }
 
     public OutboundConnectionIdentifier withNewConnectionPort(int port)
     {
-        return new OutboundConnectionIdentifier(localAddr, InetAddressAndPort.getByAddressOverrideDefaults(remoteAddr.address, port),
-                                                InetAddressAndPort.getByAddressOverrideDefaults(remoteConnectionAddr.address, port), connectionType);
+        return new OutboundConnectionIdentifier(localAddr, VirtualEndpoint.getByAddressOverrideDefaults(remoteAddr.address, port),
+                                                VirtualEndpoint.getByAddressOverrideDefaults(remoteConnectionAddr.address, port), connectionType);
     }
 
     /**
      * The local node address.
      */
-    public InetAddressAndPort local()
+    public VirtualEndpoint local()
     {
         return localAddr;
     }
@@ -139,7 +136,7 @@ public class OutboundConnectionIdentifier
     /**
      * The remote node identifying address (the one to use for anything else than connecting to the node).
      */
-    public  InetAddressAndPort remote()
+    public VirtualEndpoint remote()
     {
         return remoteAddr;
     }
@@ -147,7 +144,7 @@ public class OutboundConnectionIdentifier
     /**
      * The remote node connection address (the one to use to actually connect to the remote, and only that).
      */
-    public InetAddressAndPort connectionAddress()
+    public VirtualEndpoint connectionAddress()
     {
         return remoteConnectionAddr;
     }

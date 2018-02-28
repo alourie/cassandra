@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.DecoratedKey;
@@ -48,7 +48,7 @@ public class PrepareCallback extends AbstractPaxosCallback<PrepareResponse>
     public Commit mostRecentInProgressCommit;
     public Commit mostRecentInProgressCommitWithUpdate;
 
-    private final Map<InetAddressAndPort, Commit> commitsByReplica = new ConcurrentHashMap<>();
+    private final Map<VirtualEndpoint, Commit> commitsByReplica = new ConcurrentHashMap<>();
 
     public PrepareCallback(DecoratedKey key, TableMetadata metadata, int targets, ConsistencyLevel consistency, long queryStartNanoTime)
     {
@@ -90,7 +90,7 @@ public class PrepareCallback extends AbstractPaxosCallback<PrepareResponse>
         latch.countDown();
     }
 
-    public Iterable<InetAddressAndPort> replicasMissingMostRecentCommit(TableMetadata metadata, int nowInSec)
+    public Iterable<VirtualEndpoint> replicasMissingMostRecentCommit(TableMetadata metadata, int nowInSec)
     {
         // In general, we need every replicas that have answered to the prepare (a quorum) to agree on the MRC (see
         // coment in StorageProxy.beginAndRepairPaxos(), but basically we need to make sure at least a quorum of nodes
@@ -105,9 +105,9 @@ public class PrepareCallback extends AbstractPaxosCallback<PrepareResponse>
         if (UUIDGen.unixTimestampInSec(mostRecentCommit.ballot) + paxosTtlSec < nowInSec)
             return Collections.emptySet();
 
-        return Iterables.filter(commitsByReplica.keySet(), new Predicate<InetAddressAndPort>()
+        return Iterables.filter(commitsByReplica.keySet(), new Predicate<VirtualEndpoint>()
         {
-            public boolean apply(InetAddressAndPort inetAddress)
+            public boolean apply(VirtualEndpoint inetAddress)
             {
                 return (!commitsByReplica.get(inetAddress).ballot.equals(mostRecentCommit.ballot));
             }

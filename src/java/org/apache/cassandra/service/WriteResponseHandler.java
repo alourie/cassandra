@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.WriteType;
@@ -42,8 +42,8 @@ public class WriteResponseHandler<T> extends AbstractWriteResponseHandler<T>
     private static final AtomicIntegerFieldUpdater<WriteResponseHandler> responsesUpdater
             = AtomicIntegerFieldUpdater.newUpdater(WriteResponseHandler.class, "responses");
 
-    public WriteResponseHandler(Collection<InetAddressAndPort> writeEndpoints,
-                                Collection<InetAddressAndPort> pendingEndpoints,
+    public WriteResponseHandler(Collection<VirtualEndpoint> writeEndpoints,
+                                Collection<VirtualEndpoint> pendingEndpoints,
                                 ConsistencyLevel consistencyLevel,
                                 Keyspace keyspace,
                                 Runnable callback,
@@ -54,12 +54,12 @@ public class WriteResponseHandler<T> extends AbstractWriteResponseHandler<T>
         responses = totalBlockFor();
     }
 
-    public WriteResponseHandler(InetAddressAndPort endpoint, WriteType writeType, Runnable callback, long queryStartNanoTime)
+    public WriteResponseHandler(VirtualEndpoint endpoint, WriteType writeType, Runnable callback, long queryStartNanoTime)
     {
-        this(Arrays.asList(endpoint), Collections.<InetAddressAndPort>emptyList(), ConsistencyLevel.ONE, null, callback, writeType, queryStartNanoTime);
+        this(Arrays.asList(endpoint), Collections.<VirtualEndpoint>emptyList(), ConsistencyLevel.ONE, null, callback, writeType, queryStartNanoTime);
     }
 
-    public WriteResponseHandler(InetAddressAndPort endpoint, WriteType writeType, long queryStartNanoTime)
+    public WriteResponseHandler(VirtualEndpoint endpoint, WriteType writeType, long queryStartNanoTime)
     {
         this(endpoint, writeType, null, queryStartNanoTime);
     }

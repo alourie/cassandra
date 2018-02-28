@@ -76,8 +76,8 @@ public class CloudstackSnitchTest
     {
         az = "ch-gva-1";
         CloudstackSnitch snitch = new TestCloudstackSnitch();
-        InetAddressAndPort local = InetAddressAndPort.getByName("127.0.0.1");
-        InetAddressAndPort nonlocal = InetAddressAndPort.getByName("127.0.0.7");
+        VirtualEndpoint local = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint nonlocal = VirtualEndpoint.getByName("127.0.0.7");
 
         Gossiper.instance.addSavedEndpoint(nonlocal);
         Map<ApplicationState, VersionedValue> stateMap = new EnumMap<>(ApplicationState.class);
@@ -98,7 +98,7 @@ public class CloudstackSnitchTest
     {
         az = "ch-gva-1";
         CloudstackSnitch snitch = new TestCloudstackSnitch();
-        InetAddressAndPort local = InetAddressAndPort.getByName("127.0.0.1");
+        VirtualEndpoint local = VirtualEndpoint.getByName("127.0.0.1");
 
         assertEquals("ch-gva", snitch.getDatacenter(local));
         assertEquals("1", snitch.getRack(local));

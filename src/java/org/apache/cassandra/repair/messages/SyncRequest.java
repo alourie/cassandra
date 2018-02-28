@@ -29,7 +29,7 @@ import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.repair.RepairJobDesc;
@@ -45,13 +45,13 @@ public class SyncRequest extends RepairMessage
 {
     public static MessageSerializer serializer = new SyncRequestSerializer();
 
-    public final InetAddressAndPort initiator;
-    public final InetAddressAndPort src;
-    public final InetAddressAndPort dst;
+    public final VirtualEndpoint initiator;
+    public final VirtualEndpoint src;
+    public final VirtualEndpoint dst;
     public final Collection<Range<Token>> ranges;
     public final PreviewKind previewKind;
 
-   public SyncRequest(RepairJobDesc desc, InetAddressAndPort initiator, InetAddressAndPort src, InetAddressAndPort dst, Collection<Range<Token>> ranges, PreviewKind previewKind)
+   public SyncRequest(RepairJobDesc desc, VirtualEndpoint initiator, VirtualEndpoint src, VirtualEndpoint dst, Collection<Range<Token>> ranges, PreviewKind previewKind)
    {
         super(Type.SYNC_REQUEST, desc);
         this.initiator = initiator;
@@ -102,9 +102,9 @@ public class SyncRequest extends RepairMessage
         public SyncRequest deserialize(DataInputPlus in, int version) throws IOException
         {
             RepairJobDesc desc = RepairJobDesc.serializer.deserialize(in, version);
-            InetAddressAndPort owner = CompactEndpointSerializationHelper.instance.deserialize(in, version);
-            InetAddressAndPort src = CompactEndpointSerializationHelper.instance.deserialize(in, version);
-            InetAddressAndPort dst = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint owner = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint src = CompactEndpointSerializationHelper.instance.deserialize(in, version);
+            VirtualEndpoint dst = CompactEndpointSerializationHelper.instance.deserialize(in, version);
             int rangesCount = in.readInt();
             List<Range<Token>> ranges = new ArrayList<>(rangesCount);
             for (int i = 0; i < rangesCount; ++i)

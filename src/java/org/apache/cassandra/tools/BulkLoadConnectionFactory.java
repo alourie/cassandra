@@ -19,14 +19,12 @@
 package org.apache.cassandra.tools;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
 import io.netty.channel.Channel;
-import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.net.async.OutboundConnectionIdentifier;
 import org.apache.cassandra.streaming.DefaultConnectionFactory;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.streaming.StreamConnectionFactory;
 
 public class BulkLoadConnectionFactory extends DefaultConnectionFactory implements StreamConnectionFactory
@@ -52,7 +50,7 @@ public class BulkLoadConnectionFactory extends DefaultConnectionFactory implemen
         int port = encryptionOptions != null && encryptionOptions.internode_encryption != EncryptionOptions.ServerEncryptionOptions.InternodeEncryption.none ?
                    secureStoragePort : connectionId.remote().port;
 
-        connectionId = connectionId.withNewConnectionAddress(InetAddressAndPort.getByAddressOverrideDefaults(connectionId.remote().address, port));
+        connectionId = connectionId.withNewConnectionAddress(VirtualEndpoint.getByAddressOverrideDefaults(connectionId.remote().address, port));
         return createConnection(connectionId, protocolVersion, encryptionOptions);
     }
 }

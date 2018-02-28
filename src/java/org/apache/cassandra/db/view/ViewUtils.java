@@ -26,7 +26,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.locator.AbstractReplicationStrategy;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -58,14 +58,14 @@ public final class ViewUtils
      *
      * @return Optional.empty() if this method is called using a base token which does not belong to this replica
      */
-    public static Optional<InetAddressAndPort> getViewNaturalEndpoint(String keyspaceName, Token baseToken, Token viewToken)
+    public static Optional<VirtualEndpoint> getViewNaturalEndpoint(String keyspaceName, Token baseToken, Token viewToken)
     {
         AbstractReplicationStrategy replicationStrategy = Keyspace.open(keyspaceName).getReplicationStrategy();
 
         String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
-        List<InetAddressAndPort> baseEndpoints = new ArrayList<>();
-        List<InetAddressAndPort> viewEndpoints = new ArrayList<>();
-        for (InetAddressAndPort baseEndpoint : replicationStrategy.getNaturalEndpoints(baseToken))
+        List<VirtualEndpoint> baseEndpoints = new ArrayList<>();
+        List<VirtualEndpoint> viewEndpoints = new ArrayList<>();
+        for (VirtualEndpoint baseEndpoint : replicationStrategy.getNaturalEndpoints(baseToken))
         {
             // An endpoint is local if we're not using Net
             if (!(replicationStrategy instanceof NetworkTopologyStrategy) ||
@@ -73,7 +73,7 @@ public final class ViewUtils
                 baseEndpoints.add(baseEndpoint);
         }
 
-        for (InetAddressAndPort viewEndpoint : replicationStrategy.getNaturalEndpoints(viewToken))
+        for (VirtualEndpoint viewEndpoint : replicationStrategy.getNaturalEndpoints(viewToken))
         {
             // If we are a base endpoint which is also a view replica, we use ourselves as our view replica
             if (viewEndpoint.equals(FBUtilities.getBroadcastAddressAndPort()))

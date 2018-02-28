@@ -22,14 +22,13 @@ import java.util.Collections;
 import java.util.Collection;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.repair.messages.SyncComplete;
 import org.apache.cassandra.streaming.PreviewKind;
@@ -49,14 +48,14 @@ public class StreamingRepairTask implements Runnable, StreamEventHandler
 
     private final RepairJobDesc desc;
     private final boolean asymmetric;
-    private final InetAddressAndPort initiator;
-    private final InetAddressAndPort src;
-    private final InetAddressAndPort dst;
+    private final VirtualEndpoint initiator;
+    private final VirtualEndpoint src;
+    private final VirtualEndpoint dst;
     private final Collection<Range<Token>> ranges;
     private final UUID pendingRepair;
     private final PreviewKind previewKind;
 
-    public StreamingRepairTask(RepairJobDesc desc, InetAddressAndPort initiator, InetAddressAndPort src, InetAddressAndPort dst, Collection<Range<Token>> ranges,  UUID pendingRepair, PreviewKind previewKind, boolean asymmetric)
+    public StreamingRepairTask(RepairJobDesc desc, VirtualEndpoint initiator, VirtualEndpoint src, VirtualEndpoint dst, Collection<Range<Token>> ranges, UUID pendingRepair, PreviewKind previewKind, boolean asymmetric)
     {
         this.desc = desc;
         this.initiator = initiator;
@@ -70,14 +69,14 @@ public class StreamingRepairTask implements Runnable, StreamEventHandler
 
     public void run()
     {
-        InetAddressAndPort dest = dst;
-        InetAddressAndPort preferred = SystemKeyspace.getPreferredIP(dest);
+        VirtualEndpoint dest = dst;
+        VirtualEndpoint preferred = SystemKeyspace.getPreferredIP(dest);
         logger.info("[streaming task #{}] Performing streaming repair of {} ranges with {}", desc.sessionId, ranges.size(), dst);
         createStreamPlan(dest, preferred).execute();
     }
 
     @VisibleForTesting
-    StreamPlan createStreamPlan(InetAddressAndPort dest, InetAddressAndPort preferred)
+    StreamPlan createStreamPlan(VirtualEndpoint dest, VirtualEndpoint preferred)
     {
         StreamPlan sp = new StreamPlan(StreamOperation.REPAIR, 1, false, false, pendingRepair, previewKind)
                .listeners(this)

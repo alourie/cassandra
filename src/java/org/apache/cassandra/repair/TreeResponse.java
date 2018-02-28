@@ -17,7 +17,7 @@
  */
 package org.apache.cassandra.repair;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.utils.MerkleTrees;
 
 /**
@@ -25,10 +25,10 @@ import org.apache.cassandra.utils.MerkleTrees;
  */
 public class TreeResponse
 {
-    public final InetAddressAndPort endpoint;
+    public final VirtualEndpoint endpoint;
     public final MerkleTrees trees;
 
-    public TreeResponse(InetAddressAndPort endpoint, MerkleTrees trees)
+    public TreeResponse(VirtualEndpoint endpoint, MerkleTrees trees)
     {
         this.endpoint = endpoint;
         this.trees = trees;

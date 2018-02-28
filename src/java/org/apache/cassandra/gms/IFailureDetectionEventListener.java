@@ -17,7 +17,7 @@
  */
 package org.apache.cassandra.gms;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * Implemented by the Gossiper to convict an endpoint
@@ -33,5 +33,5 @@ public interface IFailureDetectionEventListener
      * @param ep  endpoint to be convicted
      * @param phi the value of phi with with ep was convicted
      */
-    public void convict(InetAddressAndPort ep, double phi);
+    public void convict(VirtualEndpoint ep, double phi);
 }

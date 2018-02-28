@@ -20,7 +20,6 @@ package org.apache.cassandra.locator;
 
 
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -72,8 +71,8 @@ public class EC2SnitchTest
     {
         az = "us-east-1d";
         Ec2Snitch snitch = new TestEC2Snitch();
-        InetAddressAndPort local = InetAddressAndPort.getByName("127.0.0.1");
-        InetAddressAndPort nonlocal = InetAddressAndPort.getByName("127.0.0.7");
+        VirtualEndpoint local = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint nonlocal = VirtualEndpoint.getByName("127.0.0.7");
 
         Gossiper.instance.addSavedEndpoint(nonlocal);
         Map<ApplicationState, VersionedValue> stateMap = new EnumMap<>(ApplicationState.class);
@@ -93,7 +92,7 @@ public class EC2SnitchTest
     {
         az = "us-east-2d";
         Ec2Snitch snitch = new TestEC2Snitch();
-        InetAddressAndPort local = InetAddressAndPort.getByName("127.0.0.1");
+        VirtualEndpoint local = VirtualEndpoint.getByName("127.0.0.1");
         assertEquals("us-east-2", snitch.getDatacenter(local));
         assertEquals("2d", snitch.getRack(local));
     }

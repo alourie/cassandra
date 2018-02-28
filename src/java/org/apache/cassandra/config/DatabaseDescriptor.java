@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
+import org.apache.cassandra.locator.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,11 +53,7 @@ import org.apache.cassandra.io.util.DiskOptimizationStrategy;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.io.util.SpinningDiskOptimizationStrategy;
 import org.apache.cassandra.io.util.SsdDiskOptimizationStrategy;
-import org.apache.cassandra.locator.DynamicEndpointSnitch;
-import org.apache.cassandra.locator.EndpointSnitchInfo;
-import org.apache.cassandra.locator.IEndpointSnitch;
-import org.apache.cassandra.locator.InetAddressAndPort;
-import org.apache.cassandra.locator.SeedProvider;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.BackPressureStrategy;
 import org.apache.cassandra.net.RateBasedBackPressure;
 import org.apache.cassandra.security.EncryptionContext;
@@ -112,7 +109,7 @@ public class DatabaseDescriptor
     private static long indexSummaryCapacityInMB;
 
     private static String localDC;
-    private static Comparator<InetAddressAndPort> localComparator;
+    private static Comparator<VirtualEndpoint> localComparator;
     private static EncryptionContext encryptionContext;
     private static boolean hasLoggedConfig;
 
@@ -309,7 +306,7 @@ public class DatabaseDescriptor
 
     private static void applyAll() throws ConfigurationException
     {
-        //InetAddressAndPort cares that applySimpleConfig runs first
+        //VirtualEndpoint cares that applySimpleConfig runs first
         applySimpleConfig();
 
         applyPartitioner();
@@ -330,8 +327,8 @@ public class DatabaseDescriptor
     private static void applySimpleConfig()
     {
         //Doing this first before all other things in case other pieces of config want to construct
-        //InetAddressAndPort and get the right defaults
-        InetAddressAndPort.initializeDefaultPort(getStoragePort());
+        //VirtualEndpoint and get the right defaults
+        VirtualEndpoint.initializeDefaultPort(getStoragePort());
 
         if (conf.commitlog_sync == null)
         {
@@ -970,9 +967,9 @@ public class DatabaseDescriptor
         EndpointSnitchInfo.create();
 
         localDC = snitch.getDatacenter(FBUtilities.getBroadcastAddressAndPort());
-        localComparator = new Comparator<InetAddressAndPort>()
+        localComparator = new Comparator<VirtualEndpoint>()
         {
-            public int compare(InetAddressAndPort endpoint1, InetAddressAndPort endpoint2)
+            public int compare(VirtualEndpoint endpoint1, VirtualEndpoint endpoint2)
             {
                 boolean local1 = localDC.equals(snitch.getDatacenter(endpoint1));
                 boolean local2 = localDC.equals(snitch.getDatacenter(endpoint2));
@@ -1332,14 +1329,14 @@ public class DatabaseDescriptor
         return conf.num_tokens;
     }
 
-    public static InetAddressAndPort getReplaceAddress()
+    public static VirtualEndpoint getReplaceAddress()
     {
         try
         {
             if (System.getProperty(Config.PROPERTY_PREFIX + "replace_address", null) != null)
-                return InetAddressAndPort.getByName(System.getProperty(Config.PROPERTY_PREFIX + "replace_address", null));
+                return VirtualEndpoint.getByName(System.getProperty(Config.PROPERTY_PREFIX + "replace_address", null));
             else if (System.getProperty(Config.PROPERTY_PREFIX + "replace_address_first_boot", null) != null)
-                return InetAddressAndPort.getByName(System.getProperty(Config.PROPERTY_PREFIX + "replace_address_first_boot", null));
+                return VirtualEndpoint.getByName(System.getProperty(Config.PROPERTY_PREFIX + "replace_address_first_boot", null));
             return null;
         }
         catch (UnknownHostException e)
@@ -1664,9 +1661,9 @@ public class DatabaseDescriptor
         return conf.saved_caches_directory;
     }
 
-    public static Set<InetAddressAndPort> getSeeds()
+    public static Set<VirtualEndpoint> getSeeds()
     {
-        return ImmutableSet.<InetAddressAndPort>builder().addAll(seedProvider.getSeeds()).build();
+        return ImmutableSet.<VirtualEndpoint>builder().addAll(seedProvider.getSeeds()).build();
     }
 
     public static SeedProvider getSeedProvider()
@@ -1747,7 +1744,7 @@ public class DatabaseDescriptor
      * so native is more appropriate. The address alone is not enough to uniquely identify this instance because
      * multiple instances might use the same interface with different ports.
      *
-     * May be null, please use {@link FBUtilities#getBroadcastNativeAddressAndPort()} instead.
+     * May be null, please use {@link FBUtilities#getBroadcastNativeEndpoint()} instead.
      */
     public static InetAddress getBroadcastRpcAddress()
     {
@@ -2244,7 +2241,7 @@ public class DatabaseDescriptor
         return localDC;
     }
 
-    public static Comparator<InetAddressAndPort> getLocalComparator()
+    public static Comparator<VirtualEndpoint> getLocalComparator()
     {
         return localComparator;
     }

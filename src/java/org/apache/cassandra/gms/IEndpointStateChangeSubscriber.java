@@ -17,7 +17,7 @@
  */
 package org.apache.cassandra.gms;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 /**
  * This is called by an instance of the IEndpointStateChangePublisher to notify
@@ -36,17 +36,17 @@ public interface IEndpointStateChangeSubscriber
      * @param endpoint endpoint for which the state change occurred.
      * @param epState  state that actually changed for the above endpoint.
      */
-    public void onJoin(InetAddressAndPort endpoint, EndpointState epState);
+    public void onJoin(VirtualEndpoint endpoint, EndpointState epState);
     
-    public void beforeChange(InetAddressAndPort endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue);
+    public void beforeChange(VirtualEndpoint endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue);
 
-    public void onChange(InetAddressAndPort endpoint, ApplicationState state, VersionedValue value);
+    public void onChange(VirtualEndpoint endpoint, ApplicationState state, VersionedValue value);
 
-    public void onAlive(InetAddressAndPort endpoint, EndpointState state);
+    public void onAlive(VirtualEndpoint endpoint, EndpointState state);
 
-    public void onDead(InetAddressAndPort endpoint, EndpointState state);
+    public void onDead(VirtualEndpoint endpoint, EndpointState state);
 
-    public void onRemove(InetAddressAndPort endpoint);
+    public void onRemove(VirtualEndpoint endpoint);
 
     /**
      * Called whenever a node is restarted.
@@ -54,5 +54,5 @@ public interface IEndpointStateChangeSubscriber
      * previously marked down. It will have only if {@code state.isAlive() == false}
      * as {@code state} is from before the restarted node is marked up.
      */
-    public void onRestart(InetAddressAndPort endpoint, EndpointState state);
+    public void onRestart(VirtualEndpoint endpoint, EndpointState state);
 }

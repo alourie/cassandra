@@ -29,7 +29,7 @@ import org.junit.Test;
 
 import org.apache.cassandra.cql3.CQLTester;
 import org.apache.cassandra.dht.BootStrapper;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
@@ -86,7 +86,7 @@ public class DiskBoundaryManagerTest extends CQLTester
     public void updateTokensTest() throws UnknownHostException
     {
         DiskBoundaries dbv1 = dbm.getDiskBoundaries(mock);
-        StorageService.instance.getTokenMetadata().updateNormalTokens(BootStrapper.getRandomTokens(StorageService.instance.getTokenMetadata(), 10), InetAddressAndPort.getByName("127.0.0.10"));
+        StorageService.instance.getTokenMetadata().updateNormalTokens(BootStrapper.getRandomTokens(StorageService.instance.getTokenMetadata(), 10), VirtualEndpoint.getByName("127.0.0.10"));
         DiskBoundaries dbv2 = dbm.getDiskBoundaries(mock);
         assertFalse(dbv1.equals(dbv2));
     }

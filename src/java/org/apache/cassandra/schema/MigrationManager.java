@@ -23,6 +23,7 @@ import java.util.concurrent.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -38,7 +39,6 @@ import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
@@ -59,7 +59,7 @@ public class MigrationManager
 
     private MigrationManager() {}
 
-    public static void scheduleSchemaPull(InetAddressAndPort endpoint, EndpointState state)
+    public static void scheduleSchemaPull(VirtualEndpoint endpoint, EndpointState state)
     {
         UUID schemaVersion = state.getSchemaVersion();
         if (!endpoint.equals(FBUtilities.getBroadcastAddressAndPort()) && schemaVersion != null)
@@ -70,7 +70,7 @@ public class MigrationManager
      * If versions differ this node sends request with local migration list to the endpoint
      * and expecting to receive a list of migrations to apply locally.
      */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddressAndPort endpoint)
+    private static void maybeScheduleSchemaPull(final UUID theirVersion, final VirtualEndpoint endpoint)
     {
         if (Schema.instance.getVersion() == null)
         {
@@ -130,7 +130,7 @@ public class MigrationManager
         }
     }
 
-    private static Future<?> submitMigrationTask(InetAddressAndPort endpoint)
+    private static Future<?> submitMigrationTask(VirtualEndpoint endpoint)
     {
         /*
          * Do not de-ref the future because that causes distributed deadlock (CASSANDRA-3832) because we are
@@ -139,7 +139,7 @@ public class MigrationManager
         return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint));
     }
 
-    static boolean shouldPullSchemaFrom(InetAddressAndPort endpoint)
+    static boolean shouldPullSchemaFrom(VirtualEndpoint endpoint)
     {
         /*
          * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
@@ -427,7 +427,7 @@ public class MigrationManager
             FBUtilities.waitOnFuture(announce(mutations));
     }
 
-    private static void pushSchemaMutation(InetAddressAndPort endpoint, Collection<Mutation> schema)
+    private static void pushSchemaMutation(VirtualEndpoint endpoint, Collection<Mutation> schema)
     {
         MessageOut<Collection<Mutation>> msg = new MessageOut<>(MessagingService.Verb.DEFINITIONS_UPDATE,
                                                                 schema,
@@ -446,7 +446,7 @@ public class MigrationManager
             }
         });
 
-        for (InetAddressAndPort endpoint : Gossiper.instance.getLiveMembers())
+        for (VirtualEndpoint endpoint : Gossiper.instance.getLiveMembers())
         {
             // only push schema to nodes with known and equal versions
             if (!endpoint.equals(FBUtilities.getBroadcastAddressAndPort()) &&
@@ -486,11 +486,11 @@ public class MigrationManager
 
         Schema.instance.clear();
 
-        Set<InetAddressAndPort> liveEndpoints = Gossiper.instance.getLiveMembers();
+        Set<VirtualEndpoint> liveEndpoints = Gossiper.instance.getLiveMembers();
         liveEndpoints.remove(FBUtilities.getBroadcastAddressAndPort());
 
         // force migration if there are nodes around
-        for (InetAddressAndPort node : liveEndpoints)
+        for (VirtualEndpoint node : liveEndpoints)
         {
             if (shouldPullSchemaFrom(node))
             {

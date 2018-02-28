@@ -19,7 +19,6 @@
 package org.apache.cassandra.net.async;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +30,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.sun.org.apache.bcel.internal.generic.DDIV;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -44,12 +42,11 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.ParameterType;
 import org.apache.cassandra.tracing.Tracing;
-import org.apache.cassandra.utils.UUIDGen;
 
 public class MessageOutHandlerTest
 {
@@ -74,8 +71,8 @@ public class MessageOutHandlerTest
 
     private void setup(int flushThreshold) throws Exception
     {
-        OutboundConnectionIdentifier connectionId = OutboundConnectionIdentifier.small(InetAddressAndPort.getByNameOverrideDefaults("127.0.0.1", 0),
-                                                                                       InetAddressAndPort.getByNameOverrideDefaults("127.0.0.2", 0));
+        OutboundConnectionIdentifier connectionId = OutboundConnectionIdentifier.small(VirtualEndpoint.getByNameOverrideDefaults("127.0.0.1", 0),
+                                                                                       VirtualEndpoint.getByNameOverrideDefaults("127.0.0.2", 0));
         OutboundMessagingConnection omc = new NonSendingOutboundMessagingConnection(connectionId, null, Optional.empty());
         channel = new EmbeddedChannel();
         channelWriter = ChannelWriter.create(channel, omc::handleMessageResult, Optional.empty());

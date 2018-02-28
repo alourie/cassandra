@@ -36,6 +36,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,6 @@ import org.apache.cassandra.dht.*;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.util.*;
 import org.apache.cassandra.locator.IEndpointSnitch;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.metrics.RestorableMeter;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.*;
@@ -673,7 +673,7 @@ public final class SystemKeyspace
     /**
      * Record tokens being used by another node
      */
-    public static synchronized void updateTokens(InetAddressAndPort ep, Collection<Token> tokens)
+    public static synchronized void updateTokens(VirtualEndpoint ep, Collection<Token> tokens)
     {
         if (ep.equals(FBUtilities.getBroadcastAddressAndPort()))
             return;
@@ -684,7 +684,7 @@ public final class SystemKeyspace
         executeInternal(String.format(req, PEERS_V2), ep.address, ep.port, tokensAsSet(tokens));
     }
 
-    public static synchronized void updatePreferredIP(InetAddressAndPort ep, InetAddressAndPort preferred_ip)
+    public static synchronized void updatePreferredIP(VirtualEndpoint ep, VirtualEndpoint preferred_ip)
     {
         if (getPreferredIP(ep) == preferred_ip)
             return;
@@ -696,7 +696,7 @@ public final class SystemKeyspace
         forceBlockingFlush(LEGACY_PEERS, PEERS_V2);
     }
 
-    public static synchronized void updatePeerInfo(InetAddressAndPort ep, String columnName, Object value)
+    public static synchronized void updatePeerInfo(VirtualEndpoint ep, String columnName, Object value)
     {
         if (ep.equals(FBUtilities.getBroadcastAddressAndPort()))
             return;
@@ -712,7 +712,7 @@ public final class SystemKeyspace
         executeInternal(String.format(req, PEERS_V2, columnName), ep.address, ep.port, value);
     }
 
-    public static synchronized void updatePeerNativeAddress(InetAddressAndPort ep, InetAddressAndPort address)
+    public static synchronized void updatePeerNativeAddress(VirtualEndpoint ep, VirtualEndpoint address)
     {
         if (ep.equals(FBUtilities.getBroadcastAddressAndPort()))
             return;
@@ -724,7 +724,7 @@ public final class SystemKeyspace
     }
 
 
-    public static synchronized void updateHintsDropped(InetAddressAndPort ep, UUID timePeriod, int value)
+    public static synchronized void updateHintsDropped(VirtualEndpoint ep, UUID timePeriod, int value)
     {
         // with 30 day TTL
         String req = "UPDATE system.%s USING TTL 2592000 SET hints_dropped[ ? ] = ? WHERE peer = ?";
@@ -762,7 +762,7 @@ public final class SystemKeyspace
     /**
      * Remove stored tokens being used by another node
      */
-    public static synchronized void removeEndpoint(InetAddressAndPort ep)
+    public static synchronized void removeEndpoint(VirtualEndpoint ep)
     {
         String req = "DELETE FROM system.%s WHERE peer = ?";
         executeInternal(String.format(req, LEGACY_PEERS), ep.address);
@@ -805,14 +805,14 @@ public final class SystemKeyspace
      * Return a map of stored tokens to IP addresses
      *
      */
-    public static SetMultimap<InetAddressAndPort, Token> loadTokens()
+    public static SetMultimap<VirtualEndpoint, Token> loadTokens()
     {
-        SetMultimap<InetAddressAndPort, Token> tokenMap = HashMultimap.create();
+        SetMultimap<VirtualEndpoint, Token> tokenMap = HashMultimap.create();
         for (UntypedResultSet.Row row : executeInternal("SELECT peer, peer_port, tokens FROM system." + PEERS_V2))
         {
             InetAddress address = row.getInetAddress("peer");
             Integer port = row.getInt("peer_port");
-            InetAddressAndPort peer = InetAddressAndPort.getByAddressOverrideDefaults(address, port);
+            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port);
             if (row.has("tokens"))
                 tokenMap.putAll(peer, deserializeTokens(row.getSet("tokens", UTF8Type.instance)));
         }
@@ -824,14 +824,14 @@ public final class SystemKeyspace
      * Return a map of store host_ids to IP addresses
      *
      */
-    public static Map<InetAddressAndPort, UUID> loadHostIds()
+    public static Map<VirtualEndpoint, UUID> loadHostIds()
     {
-        Map<InetAddressAndPort, UUID> hostIdMap = new HashMap<>();
+        Map<VirtualEndpoint, UUID> hostIdMap = new HashMap<>();
         for (UntypedResultSet.Row row : executeInternal("SELECT peer, peer_port, host_id FROM system." + PEERS_V2))
         {
             InetAddress address = row.getInetAddress("peer");
             Integer port = row.getInt("peer_port");
-            InetAddressAndPort peer = InetAddressAndPort.getByAddressOverrideDefaults(address, port);
+            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port);
             if (row.has("host_id"))
             {
                 hostIdMap.put(peer, row.getUUID("host_id"));
@@ -846,14 +846,14 @@ public final class SystemKeyspace
      * @param ep endpoint address to check
      * @return Preferred IP for given endpoint if present, otherwise returns given ep
      */
-    public static InetAddressAndPort getPreferredIP(InetAddressAndPort ep)
+    public static VirtualEndpoint getPreferredIP(VirtualEndpoint ep)
     {
         String req = "SELECT preferred_ip, preferred_port FROM system.%s WHERE peer=? AND peer_port = ?";
         UntypedResultSet result = executeInternal(String.format(req, PEERS_V2), ep.address, ep.port);
         if (!result.isEmpty() && result.one().has("preferred_ip"))
         {
             UntypedResultSet.Row row = result.one();
-            return InetAddressAndPort.getByAddressOverrideDefaults(row.getInetAddress("preferred_ip"), row.getInt("preferred_port"));
+            return VirtualEndpoint.getByAddressOverrideDefaults(row.getInetAddress("preferred_ip"), row.getInt("preferred_port"));
         }
         return ep;
     }
@@ -861,14 +861,14 @@ public final class SystemKeyspace
     /**
      * Return a map of IP addresses containing a map of dc and rack info
      */
-    public static Map<InetAddressAndPort, Map<String,String>> loadDcRackInfo()
+    public static Map<VirtualEndpoint, Map<String,String>> loadDcRackInfo()
     {
-        Map<InetAddressAndPort, Map<String, String>> result = new HashMap<>();
+        Map<VirtualEndpoint, Map<String, String>> result = new HashMap<>();
         for (UntypedResultSet.Row row : executeInternal("SELECT peer, peer_port, data_center, rack from system." + PEERS_V2))
         {
             InetAddress address = row.getInetAddress("peer");
             Integer port = row.getInt("peer_port");
-            InetAddressAndPort peer = InetAddressAndPort.getByAddressOverrideDefaults(address, port);
+            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port);
             if (row.has("data_center") && row.has("rack"))
             {
                 Map<String, String> dcRack = new HashMap<>();
@@ -887,7 +887,7 @@ public final class SystemKeyspace
      * @param ep endpoint address to check
      * @return Release version or null if version is unknown.
      */
-    public static CassandraVersion getReleaseVersion(InetAddressAndPort ep)
+    public static CassandraVersion getReleaseVersion(VirtualEndpoint ep)
     {
         try
         {
@@ -1305,7 +1305,7 @@ public final class SystemKeyspace
     }
 
     public static synchronized void updateTransferredRanges(StreamOperation streamOperation,
-                                                         InetAddressAndPort peer,
+                                                         VirtualEndpoint peer,
                                                          String keyspace,
                                                          Collection<Range<Token>> streamedRanges)
     {
@@ -1320,16 +1320,16 @@ public final class SystemKeyspace
         executeInternal(String.format(cql, TRANSFERRED_RANGES_V2), rangesToUpdate, streamOperation.getDescription(), peer.address, peer.port, keyspace);
     }
 
-    public static synchronized Map<InetAddressAndPort, Set<Range<Token>>> getTransferredRanges(String description, String keyspace, IPartitioner partitioner)
+    public static synchronized Map<VirtualEndpoint, Set<Range<Token>>> getTransferredRanges(String description, String keyspace, IPartitioner partitioner)
     {
-        Map<InetAddressAndPort, Set<Range<Token>>> result = new HashMap<>();
+        Map<VirtualEndpoint, Set<Range<Token>>> result = new HashMap<>();
         String query = "SELECT * FROM system.%s WHERE operation = ? AND keyspace_name = ?";
         UntypedResultSet rs = executeInternal(String.format(query, TRANSFERRED_RANGES_V2), description, keyspace);
         for (UntypedResultSet.Row row : rs)
         {
             InetAddress peerAddress = row.getInetAddress("peer");
             int port = row.getInt("peer_port");
-            InetAddressAndPort peer = InetAddressAndPort.getByAddressOverrideDefaults(peerAddress, port);
+            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(peerAddress, port);
             Set<ByteBuffer> rawRanges = row.getSet("ranges", BytesType.instance);
             Set<Range<Token>> ranges = Sets.newHashSetWithExpectedSize(rawRanges.size());
             for (ByteBuffer rawRange : rawRanges)

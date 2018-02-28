@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import com.google.common.collect.ImmutableList;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -38,7 +39,6 @@ import org.apache.cassandra.dht.BootStrapper;
 import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputBuffer;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.net.MessageIn;
@@ -81,7 +81,7 @@ public class HintTest
     public void resetGcGraceSeconds()
     {
         TokenMetadata tokenMeta = StorageService.instance.getTokenMetadata();
-        InetAddressAndPort local = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint local = FBUtilities.getBroadcastAddressAndPort();
         tokenMeta.clearUnsafe();
         tokenMeta.updateHostId(UUID.randomUUID(), local);
         tokenMeta.updateNormalTokens(BootStrapper.getRandomTokens(tokenMeta, 1), local);
@@ -230,8 +230,8 @@ public class HintTest
 
         // Prepare metadata with injected stale endpoint serving the mutation key.
         TokenMetadata tokenMeta = StorageService.instance.getTokenMetadata();
-        InetAddressAndPort local = FBUtilities.getBroadcastAddressAndPort();
-        InetAddressAndPort endpoint = InetAddressAndPort.getByName("1.1.1.1");
+        VirtualEndpoint local = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint endpoint = VirtualEndpoint.getByName("1.1.1.1");
         UUID localId = StorageService.instance.getLocalHostUUID();
         UUID targetId = UUID.randomUUID();
         tokenMeta.updateHostId(targetId, endpoint);
@@ -271,8 +271,8 @@ public class HintTest
 
         // Prepare metadata with injected stale endpoint.
         TokenMetadata tokenMeta = StorageService.instance.getTokenMetadata();
-        InetAddressAndPort local = FBUtilities.getBroadcastAddressAndPort();
-        InetAddressAndPort endpoint = InetAddressAndPort.getByName("1.1.1.1");
+        VirtualEndpoint local = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint endpoint = VirtualEndpoint.getByName("1.1.1.1");
         UUID localId = StorageService.instance.getLocalHostUUID();
         UUID targetId = UUID.randomUUID();
         tokenMeta.updateHostId(targetId, endpoint);

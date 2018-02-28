@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -36,7 +36,7 @@ public class SessionInfoTest
     public void testTotals()
     {
         TableId tableId = TableId.generate();
-        InetAddressAndPort local = FBUtilities.getLocalAddressAndPort();
+        VirtualEndpoint local = FBUtilities.getLocalAddressAndPort();
 
         Collection<StreamSummary> summaries = new ArrayList<>();
         for (int i = 0; i < 10; i++)

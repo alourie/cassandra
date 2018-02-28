@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,7 +35,6 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.service.StorageService;
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
@@ -66,7 +66,7 @@ public class PendingRangeCalculatorServiceTest
             action = "org.apache.cassandra.gms.PendingRangeCalculatorServiceTest.calculationLock.lock()")
     public void testDelayedResponse() throws UnknownHostException, InterruptedException
     {
-        InetAddressAndPort otherNodeAddr = InetAddressAndPort.getByName("127.0.0.2");
+        VirtualEndpoint otherNodeAddr = VirtualEndpoint.getByName("127.0.0.2");
         UUID otherHostId = UUID.randomUUID();
 
         // introduce node for first major state change
@@ -112,7 +112,7 @@ public class PendingRangeCalculatorServiceTest
         }
     }
 
-    private Map<InetAddressAndPort, EndpointState> getStates(InetAddressAndPort otherNodeAddr, UUID hostId, int ver, boolean bootstrapping)
+    private Map<VirtualEndpoint, EndpointState> getStates(VirtualEndpoint otherNodeAddr, UUID hostId, int ver, boolean bootstrapping)
     {
         HeartBeatState hb = new HeartBeatState(1, ver);
         EndpointState state = new EndpointState(hb);
@@ -125,7 +125,7 @@ public class PendingRangeCalculatorServiceTest
         state.addApplicationState(ApplicationState.HOST_ID, StorageService.instance.valueFactory.hostId(hostId));
         state.addApplicationState(ApplicationState.NET_VERSION, StorageService.instance.valueFactory.networkVersion());
 
-        Map<InetAddressAndPort, EndpointState> states = new HashMap<>();
+        Map<VirtualEndpoint, EndpointState> states = new HashMap<>();
         states.put(otherNodeAddr, state);
         return states;
     }

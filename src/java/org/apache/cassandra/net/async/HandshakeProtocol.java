@@ -17,10 +17,7 @@
  */
 package org.apache.cassandra.net.async;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.Objects;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -28,11 +25,9 @@ import com.google.common.primitives.Ints;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.net.MessagingService;
 
@@ -231,9 +226,9 @@ public class HandshakeProtocol
         private static final int MIN_LENGTH = 9;
 
         final int messagingVersion;
-        final InetAddressAndPort address;
+        final VirtualEndpoint address;
 
-        ThirdHandshakeMessage(int messagingVersion, InetAddressAndPort address)
+        ThirdHandshakeMessage(int messagingVersion, VirtualEndpoint address)
         {
             this.messagingVersion = messagingVersion;
             this.address = address;
@@ -270,7 +265,7 @@ public class HandshakeProtocol
             DataInputPlus input = new ByteBufDataInputPlus(in);
             try
             {
-                InetAddressAndPort address = CompactEndpointSerializationHelper.instance.deserialize(input, version);
+                VirtualEndpoint address = CompactEndpointSerializationHelper.instance.deserialize(input, version);
                 return new ThirdHandshakeMessage(version, address);
             }
             catch (IOException e)

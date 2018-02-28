@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.net.async;
 
-import java.net.InetSocketAddress;
 import java.util.Optional;
 
 import com.google.common.net.InetAddresses;
@@ -43,10 +42,9 @@ import io.netty.util.concurrent.GlobalEventExecutor;
 import org.apache.cassandra.auth.AllowAllInternodeAuthenticator;
 import org.apache.cassandra.auth.IInternodeAuthenticator;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
 import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.async.NettyFactory.InboundInitializer;
 import org.apache.cassandra.net.async.NettyFactory.OutboundInitializer;
@@ -56,8 +54,8 @@ import org.apache.cassandra.utils.NativeLibrary;
 
 public class NettyFactoryTest
 {
-    private static final InetAddressAndPort LOCAL_ADDR = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 9876);
-    private static final InetAddressAndPort REMOTE_ADDR = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.2"), 9876);
+    private static final VirtualEndpoint LOCAL_ADDR = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 9876);
+    private static final VirtualEndpoint REMOTE_ADDR = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.2"), 9876);
     private static final int receiveBufferSize = 1 << 16;
     private static final IInternodeAuthenticator AUTHENTICATOR = new AllowAllInternodeAuthenticator();
     private static final boolean EPOLL_AVAILABLE = NativeTransportService.useEpoll();
@@ -143,7 +141,7 @@ public class NettyFactoryTest
     @Test(expected = ConfigurationException.class)
     public void createServerChannel_UnbindableAddress()
     {
-        InetAddressAndPort addr = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("1.1.1.1"), 9876);
+        VirtualEndpoint addr = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("1.1.1.1"), 9876);
         InboundInitializer inboundInitializer = new InboundInitializer(AUTHENTICATOR, null, channelGroup);
         NettyFactory.instance.createInboundChannel(addr, inboundInitializer, receiveBufferSize);
     }
@@ -161,7 +159,7 @@ public class NettyFactoryTest
         Assert.assertEquals(2, NettyFactory.determineAcceptGroupSize(serverEncryptionOptions));
         serverEncryptionOptions.enable_legacy_ssl_storage_port = false;
 
-        InetAddressAndPort originalBroadcastAddr = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint originalBroadcastAddr = FBUtilities.getBroadcastAddressAndPort();
         try
         {
             FBUtilities.setBroadcastInetAddress(InetAddresses.increment(FBUtilities.getLocalAddressAndPort().address));

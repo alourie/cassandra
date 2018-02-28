@@ -25,13 +25,12 @@ import java.util.List;
 import java.util.UUID;
 
 import com.google.common.collect.Lists;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
-import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -43,7 +42,6 @@ import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputBufferFixed;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.repair.NodePair;
 import org.apache.cassandra.streaming.PreviewKind;
@@ -148,9 +146,9 @@ public class RepairMessageSerializationsTest
     @Test
     public void syncRequestMessage() throws IOException
     {
-        InetAddressAndPort initiator = InetAddressAndPort.getByName("127.0.0.1");
-        InetAddressAndPort src = InetAddressAndPort.getByName("127.0.0.2");
-        InetAddressAndPort dst = InetAddressAndPort.getByName("127.0.0.3");
+        VirtualEndpoint initiator = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint src = VirtualEndpoint.getByName("127.0.0.2");
+        VirtualEndpoint dst = VirtualEndpoint.getByName("127.0.0.3");
 
         SyncRequest msg = new SyncRequest(buildRepairJobDesc(), initiator, src, dst, buildTokenRanges(), PreviewKind.NONE);
         serializeRoundTrip(msg, SyncRequest.serializer);
@@ -159,8 +157,8 @@ public class RepairMessageSerializationsTest
     @Test
     public void syncCompleteMessage() throws IOException
     {
-        InetAddressAndPort src = InetAddressAndPort.getByName("127.0.0.2");
-        InetAddressAndPort dst = InetAddressAndPort.getByName("127.0.0.3");
+        VirtualEndpoint src = VirtualEndpoint.getByName("127.0.0.2");
+        VirtualEndpoint dst = VirtualEndpoint.getByName("127.0.0.3");
         List<SessionSummary> summaries = new ArrayList<>();
         summaries.add(new SessionSummary(src, dst,
                                          Lists.newArrayList(new StreamSummary(TableId.fromUUID(UUIDGen.getTimeUUID()), 5, 100)),

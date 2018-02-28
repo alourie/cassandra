@@ -24,10 +24,9 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 import org.junit.matchers.JUnitMatchers;
-
-import org.apache.cassandra.locator.InetAddressAndPort;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -39,89 +38,89 @@ public class BatchlogEndpointFilterTest
     @Test
     public void shouldSelect2hostsFromNonLocalRacks() throws UnknownHostException
     {
-        Multimap<String, InetAddressAndPort> endpoints = ImmutableMultimap.<String, InetAddressAndPort> builder()
-                .put(LOCAL, InetAddressAndPort.getByName("0"))
-                .put(LOCAL, InetAddressAndPort.getByName("00"))
-                .put("1", InetAddressAndPort.getByName("1"))
-                .put("1", InetAddressAndPort.getByName("11"))
-                .put("2", InetAddressAndPort.getByName("2"))
-                .put("2", InetAddressAndPort.getByName("22"))
+        Multimap<String, VirtualEndpoint> endpoints = ImmutableMultimap.<String, VirtualEndpoint> builder()
+                .put(LOCAL, VirtualEndpoint.getByName("0"))
+                .put(LOCAL, VirtualEndpoint.getByName("00"))
+                .put("1", VirtualEndpoint.getByName("1"))
+                .put("1", VirtualEndpoint.getByName("11"))
+                .put("2", VirtualEndpoint.getByName("2"))
+                .put("2", VirtualEndpoint.getByName("22"))
                 .build();
-        Collection<InetAddressAndPort> result = new TestEndpointFilter(LOCAL, endpoints).filter();
+        Collection<VirtualEndpoint> result = new TestEndpointFilter(LOCAL, endpoints).filter();
         assertThat(result.size(), is(2));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("11")));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("22")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("11")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("22")));
     }
 
     @Test
     public void shouldSelectHostFromLocal() throws UnknownHostException
     {
-        Multimap<String, InetAddressAndPort> endpoints = ImmutableMultimap.<String, InetAddressAndPort> builder()
-                .put(LOCAL, InetAddressAndPort.getByName("0"))
-                .put(LOCAL, InetAddressAndPort.getByName("00"))
-                .put("1", InetAddressAndPort.getByName("1"))
+        Multimap<String, VirtualEndpoint> endpoints = ImmutableMultimap.<String, VirtualEndpoint> builder()
+                .put(LOCAL, VirtualEndpoint.getByName("0"))
+                .put(LOCAL, VirtualEndpoint.getByName("00"))
+                .put("1", VirtualEndpoint.getByName("1"))
                 .build();
-        Collection<InetAddressAndPort> result = new TestEndpointFilter(LOCAL, endpoints).filter();
+        Collection<VirtualEndpoint> result = new TestEndpointFilter(LOCAL, endpoints).filter();
         assertThat(result.size(), is(2));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("1")));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("0")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("1")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("0")));
     }
 
     @Test
     public void shouldReturnAsIsIfNoEnoughEndpoints() throws UnknownHostException
     {
-        Multimap<String, InetAddressAndPort> endpoints = ImmutableMultimap.<String, InetAddressAndPort> builder()
-                .put(LOCAL, InetAddressAndPort.getByName("0"))
+        Multimap<String, VirtualEndpoint> endpoints = ImmutableMultimap.<String, VirtualEndpoint> builder()
+                .put(LOCAL, VirtualEndpoint.getByName("0"))
                 .build();
-        Collection<InetAddressAndPort> result = new TestEndpointFilter(LOCAL, endpoints).filter();
+        Collection<VirtualEndpoint> result = new TestEndpointFilter(LOCAL, endpoints).filter();
         assertThat(result.size(), is(1));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("0")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("0")));
     }
 
     @Test
     public void shouldSelectTwoRandomHostsFromSingleOtherRack() throws UnknownHostException
     {
-        Multimap<String, InetAddressAndPort> endpoints = ImmutableMultimap.<String, InetAddressAndPort> builder()
-                .put(LOCAL, InetAddressAndPort.getByName("0"))
-                .put(LOCAL, InetAddressAndPort.getByName("00"))
-                .put("1", InetAddressAndPort.getByName("1"))
-                .put("1", InetAddressAndPort.getByName("11"))
-                .put("1", InetAddressAndPort.getByName("111"))
+        Multimap<String, VirtualEndpoint> endpoints = ImmutableMultimap.<String, VirtualEndpoint> builder()
+                .put(LOCAL, VirtualEndpoint.getByName("0"))
+                .put(LOCAL, VirtualEndpoint.getByName("00"))
+                .put("1", VirtualEndpoint.getByName("1"))
+                .put("1", VirtualEndpoint.getByName("11"))
+                .put("1", VirtualEndpoint.getByName("111"))
                 .build();
-        Collection<InetAddressAndPort> result = new TestEndpointFilter(LOCAL, endpoints).filter();
+        Collection<VirtualEndpoint> result = new TestEndpointFilter(LOCAL, endpoints).filter();
         // result should be the last two non-local replicas
         // (Collections.shuffle has been replaced with Collections.reverse for testing)
         assertThat(result.size(), is(2));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("11")));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("111")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("11")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("111")));
     }
 
     @Test
     public void shouldSelectTwoRandomHostsFromSingleRack() throws UnknownHostException
     {
-        Multimap<String, InetAddressAndPort> endpoints = ImmutableMultimap.<String, InetAddressAndPort> builder()
-                .put(LOCAL, InetAddressAndPort.getByName("1"))
-                .put(LOCAL, InetAddressAndPort.getByName("11"))
-                .put(LOCAL, InetAddressAndPort.getByName("111"))
-                .put(LOCAL, InetAddressAndPort.getByName("1111"))
+        Multimap<String, VirtualEndpoint> endpoints = ImmutableMultimap.<String, VirtualEndpoint> builder()
+                .put(LOCAL, VirtualEndpoint.getByName("1"))
+                .put(LOCAL, VirtualEndpoint.getByName("11"))
+                .put(LOCAL, VirtualEndpoint.getByName("111"))
+                .put(LOCAL, VirtualEndpoint.getByName("1111"))
                 .build();
-        Collection<InetAddressAndPort> result = new TestEndpointFilter(LOCAL, endpoints).filter();
+        Collection<VirtualEndpoint> result = new TestEndpointFilter(LOCAL, endpoints).filter();
         // result should be the last two non-local replicas
         // (Collections.shuffle has been replaced with Collections.reverse for testing)
         assertThat(result.size(), is(2));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("111")));
-        assertThat(result, JUnitMatchers.hasItem(InetAddressAndPort.getByName("1111")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("111")));
+        assertThat(result, JUnitMatchers.hasItem(VirtualEndpoint.getByName("1111")));
     }
 
     private static class TestEndpointFilter extends BatchlogManager.EndpointFilter
     {
-        TestEndpointFilter(String localRack, Multimap<String, InetAddressAndPort> endpoints)
+        TestEndpointFilter(String localRack, Multimap<String, VirtualEndpoint> endpoints)
         {
             super(localRack, endpoints);
         }
 
         @Override
-        protected boolean isValid(InetAddressAndPort input)
+        protected boolean isValid(VirtualEndpoint input)
         {
             // We will use always alive non-localhost endpoints
             return true;

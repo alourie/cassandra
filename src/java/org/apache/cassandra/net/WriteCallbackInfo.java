@@ -21,7 +21,7 @@ package org.apache.cassandra.net;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.io.IVersionedSerializer;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.service.paxos.Commit;
 import org.apache.cassandra.utils.FBUtilities;
@@ -31,7 +31,7 @@ public class WriteCallbackInfo extends CallbackInfo
     // either a Mutation, or a Paxos Commit (MessageOut)
     private final Object mutation;
 
-    public WriteCallbackInfo(InetAddressAndPort target,
+    public WriteCallbackInfo(VirtualEndpoint target,
                              IAsyncCallback callback,
                              MessageOut message,
                              IVersionedSerializer<?> serializer,

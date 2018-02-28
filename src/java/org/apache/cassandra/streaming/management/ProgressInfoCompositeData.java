@@ -25,7 +25,7 @@ import javax.management.openmbean.*;
 
 import com.google.common.base.Throwables;
 
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.streaming.ProgressInfo;
 
 public class ProgressInfoCompositeData
@@ -98,7 +98,7 @@ public class ProgressInfoCompositeData
         Object[] values = cd.getAll(ITEM_NAMES);
         try
         {
-            return new ProgressInfo(InetAddressAndPort.getByNameOverrideDefaults((String) values[1], (Integer)values[2]),
+            return new ProgressInfo(VirtualEndpoint.getByNameOverrideDefaults((String) values[1], (Integer)values[2]),
                                     (int) values[3],
                                     (String) values[4],
                                     ProgressInfo.Direction.valueOf((String)values[5]),

@@ -24,7 +24,7 @@ import java.util.List;
 
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 
 public abstract class Event
 {
@@ -111,17 +111,17 @@ public abstract class Event
             this.change = change;
         }
 
-        public static TopologyChange newNode(InetAddressAndPort address)
+        public static TopologyChange newNode(VirtualEndpoint address)
         {
             return new TopologyChange(Change.NEW_NODE, new InetSocketAddress(address.address, address.port));
         }
 
-        public static TopologyChange removedNode(InetAddressAndPort address)
+        public static TopologyChange removedNode(VirtualEndpoint address)
         {
             return new TopologyChange(Change.REMOVED_NODE, new InetSocketAddress(address.address, address.port));
         }
 
-        public static TopologyChange movedNode(InetAddressAndPort address)
+        public static TopologyChange movedNode(VirtualEndpoint address)
         {
             return new TopologyChange(Change.MOVED_NODE, new InetSocketAddress(address.address, address.port));
         }
@@ -182,12 +182,12 @@ public abstract class Event
             this.status = status;
         }
 
-        public static StatusChange nodeUp(InetAddressAndPort address)
+        public static StatusChange nodeUp(VirtualEndpoint address)
         {
             return new StatusChange(Status.UP, new InetSocketAddress(address.address, address.port));
         }
 
-        public static StatusChange nodeDown(InetAddressAndPort address)
+        public static StatusChange nodeDown(VirtualEndpoint address)
         {
             return new StatusChange(Status.DOWN, new InetSocketAddress(address.address, address.port));
         }

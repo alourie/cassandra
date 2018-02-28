@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.repair.TreeResponse;
 import org.apache.cassandra.utils.MerkleTrees;
 
@@ -36,11 +36,11 @@ import org.apache.cassandra.utils.MerkleTrees;
  */
 public class DifferenceHolder
 {
-    private final ImmutableMap<InetAddressAndPort, HostDifferences> differences;
+    private final ImmutableMap<VirtualEndpoint, HostDifferences> differences;
 
     public DifferenceHolder(List<TreeResponse> trees)
     {
-        ImmutableMap.Builder<InetAddressAndPort, HostDifferences> diffBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<VirtualEndpoint, HostDifferences> diffBuilder = ImmutableMap.builder();
         for (int i = 0; i < trees.size() - 1; ++i)
         {
             TreeResponse r1 = trees.get(i);
@@ -58,9 +58,9 @@ public class DifferenceHolder
     }
 
     @VisibleForTesting
-    DifferenceHolder(Map<InetAddressAndPort, HostDifferences> differences)
+    DifferenceHolder(Map<VirtualEndpoint, HostDifferences> differences)
     {
-        ImmutableMap.Builder<InetAddressAndPort, HostDifferences> diffBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<VirtualEndpoint, HostDifferences> diffBuilder = ImmutableMap.builder();
         diffBuilder.putAll(differences);
         this.differences = diffBuilder.build();
     }
@@ -68,12 +68,12 @@ public class DifferenceHolder
     /**
      * differences only holds one 'side' of the difference - if A and B mismatch, only A will be a key in the map
      */
-    public Set<InetAddressAndPort> keyHosts()
+    public Set<VirtualEndpoint> keyHosts()
     {
         return differences.keySet();
     }
 
-    public HostDifferences get(InetAddressAndPort hostWithDifference)
+    public HostDifferences get(VirtualEndpoint hostWithDifference)
     {
         return differences.get(hostWithDifference);
     }
@@ -85,7 +85,7 @@ public class DifferenceHolder
                '}';
     }
 
-    public boolean hasDifferenceBetween(InetAddressAndPort node1, InetAddressAndPort node2, Range<Token> range)
+    public boolean hasDifferenceBetween(VirtualEndpoint node1, VirtualEndpoint node2, Range<Token> range)
     {
         HostDifferences diffsNode1 = differences.get(node1);
         if (diffsNode1 != null && diffsNode1.hasDifferencesFor(node2, range))

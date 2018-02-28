@@ -28,12 +28,12 @@ import javax.management.ObjectName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.DebuggableScheduledThreadPoolExecutor;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.schema.SchemaConstants;
 import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.*;
@@ -250,7 +250,7 @@ public class BatchlogManager implements BatchlogManagerMBean
         int positionInPage = 0;
         ArrayList<ReplayingBatch> unfinishedBatches = new ArrayList<>(pageSize);
 
-        Set<InetAddressAndPort> hintedNodes = new HashSet<>();
+        Set<VirtualEndpoint> hintedNodes = new HashSet<>();
         Set<UUID> replayedBatches = new HashSet<>();
 
         // Sending out batches for replay without waiting for them, so that one stuck batch doesn't affect others
@@ -295,7 +295,7 @@ public class BatchlogManager implements BatchlogManagerMBean
         replayedBatches.forEach(BatchlogManager::remove);
     }
 
-    private void finishAndClearBatches(ArrayList<ReplayingBatch> batches, Set<InetAddressAndPort> hintedNodes, Set<UUID> replayedBatches)
+    private void finishAndClearBatches(ArrayList<ReplayingBatch> batches, Set<VirtualEndpoint> hintedNodes, Set<UUID> replayedBatches)
     {
         // schedule hints for timed out deliveries
         for (ReplayingBatch batch : batches)
@@ -330,7 +330,7 @@ public class BatchlogManager implements BatchlogManagerMBean
             this.replayedBytes = addMutations(version, serializedMutations);
         }
 
-        public int replay(RateLimiter rateLimiter, Set<InetAddressAndPort> hintedNodes) throws IOException
+        public int replay(RateLimiter rateLimiter, Set<VirtualEndpoint> hintedNodes) throws IOException
         {
             logger.trace("Replaying batch {}", id);
 
@@ -348,7 +348,7 @@ public class BatchlogManager implements BatchlogManagerMBean
             return replayHandlers.size();
         }
 
-        public void finish(Set<InetAddressAndPort> hintedNodes)
+        public void finish(Set<VirtualEndpoint> hintedNodes)
         {
             for (int i = 0; i < replayHandlers.size(); i++)
             {
@@ -396,7 +396,7 @@ public class BatchlogManager implements BatchlogManagerMBean
                 mutations.add(mutation);
         }
 
-        private void writeHintsForUndeliveredEndpoints(int startFrom, Set<InetAddressAndPort> hintedNodes)
+        private void writeHintsForUndeliveredEndpoints(int startFrom, Set<VirtualEndpoint> hintedNodes)
         {
             int gcgs = gcgs(mutations);
 
@@ -420,7 +420,7 @@ public class BatchlogManager implements BatchlogManagerMBean
 
         private static List<ReplayWriteResponseHandler<Mutation>> sendReplays(List<Mutation> mutations,
                                                                               long writtenAt,
-                                                                              Set<InetAddressAndPort> hintedNodes)
+                                                                              Set<VirtualEndpoint> hintedNodes)
         {
             List<ReplayWriteResponseHandler<Mutation>> handlers = new ArrayList<>(mutations.size());
             for (Mutation mutation : mutations)
@@ -440,13 +440,13 @@ public class BatchlogManager implements BatchlogManagerMBean
          */
         private static ReplayWriteResponseHandler<Mutation> sendSingleReplayMutation(final Mutation mutation,
                                                                                      long writtenAt,
-                                                                                     Set<InetAddressAndPort> hintedNodes)
+                                                                                     Set<VirtualEndpoint> hintedNodes)
         {
-            Set<InetAddressAndPort> liveEndpoints = new HashSet<>();
+            Set<VirtualEndpoint> liveEndpoints = new HashSet<>();
             String ks = mutation.getKeyspaceName();
             Token tk = mutation.key().getToken();
 
-            for (InetAddressAndPort endpoint : StorageService.instance.getNaturalAndPendingEndpoints(ks, tk))
+            for (VirtualEndpoint endpoint : StorageService.instance.getNaturalAndPendingEndpoints(ks, tk))
             {
                 if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
                 {
@@ -469,7 +469,7 @@ public class BatchlogManager implements BatchlogManagerMBean
 
             ReplayWriteResponseHandler<Mutation> handler = new ReplayWriteResponseHandler<>(liveEndpoints, System.nanoTime());
             MessageOut<Mutation> message = mutation.createMessage();
-            for (InetAddressAndPort endpoint : liveEndpoints)
+            for (VirtualEndpoint endpoint : liveEndpoints)
                 MessagingService.instance().sendRR(message, endpoint, handler, false);
             return handler;
         }
@@ -488,11 +488,11 @@ public class BatchlogManager implements BatchlogManagerMBean
          */
         private static class ReplayWriteResponseHandler<T> extends WriteResponseHandler<T>
         {
-            private final Set<InetAddressAndPort> undelivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
+            private final Set<VirtualEndpoint> undelivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-            ReplayWriteResponseHandler(Collection<InetAddressAndPort> writeEndpoints, long queryStartNanoTime)
+            ReplayWriteResponseHandler(Collection<VirtualEndpoint> writeEndpoints, long queryStartNanoTime)
             {
-                super(writeEndpoints, Collections.<InetAddressAndPort>emptySet(), null, null, null, WriteType.UNLOGGED_BATCH, queryStartNanoTime);
+                super(writeEndpoints, Collections.<VirtualEndpoint>emptySet(), null, null, null, WriteType.UNLOGGED_BATCH, queryStartNanoTime);
                 undelivered.addAll(writeEndpoints);
             }
 
@@ -515,9 +515,9 @@ public class BatchlogManager implements BatchlogManagerMBean
     public static class EndpointFilter
     {
         private final String localRack;
-        private final Multimap<String, InetAddressAndPort> endpoints;
+        private final Multimap<String, VirtualEndpoint> endpoints;
 
-        public EndpointFilter(String localRack, Multimap<String, InetAddressAndPort> endpoints)
+        public EndpointFilter(String localRack, Multimap<String, VirtualEndpoint> endpoints)
         {
             this.localRack = localRack;
             this.endpoints = endpoints;
@@ -526,15 +526,15 @@ public class BatchlogManager implements BatchlogManagerMBean
         /**
          * @return list of candidates for batchlog hosting. If possible these will be two nodes from different racks.
          */
-        public Collection<InetAddressAndPort> filter()
+        public Collection<VirtualEndpoint> filter()
         {
             // special case for single-node data centers
             if (endpoints.values().size() == 1)
                 return endpoints.values();
 
             // strip out dead endpoints and localhost
-            ListMultimap<String, InetAddressAndPort> validated = ArrayListMultimap.create();
-            for (Map.Entry<String, InetAddressAndPort> entry : endpoints.entries())
+            ListMultimap<String, VirtualEndpoint> validated = ArrayListMultimap.create();
+            for (Map.Entry<String, VirtualEndpoint> entry : endpoints.entries())
                 if (isValid(entry.getValue()))
                     validated.put(entry.getKey(), entry.getValue());
 
@@ -554,7 +554,7 @@ public class BatchlogManager implements BatchlogManagerMBean
                  * pick two random nodes from there; we are guaranteed to have at least two nodes in the single remaining rack
                  * because of the preceding if block.
                  */
-                List<InetAddressAndPort> otherRack = Lists.newArrayList(validated.values());
+                List<VirtualEndpoint> otherRack = Lists.newArrayList(validated.values());
                 shuffle(otherRack);
                 return otherRack.subList(0, 2);
             }
@@ -572,10 +572,10 @@ public class BatchlogManager implements BatchlogManagerMBean
             }
 
             // grab a random member of up to two racks
-            List<InetAddressAndPort> result = new ArrayList<>(2);
+            List<VirtualEndpoint> result = new ArrayList<>(2);
             for (String rack : Iterables.limit(racks, 2))
             {
-                List<InetAddressAndPort> rackMembers = validated.get(rack);
+                List<VirtualEndpoint> rackMembers = validated.get(rack);
                 result.add(rackMembers.get(getRandomInt(rackMembers.size())));
             }
 
@@ -583,7 +583,7 @@ public class BatchlogManager implements BatchlogManagerMBean
         }
 
         @VisibleForTesting
-        protected boolean isValid(InetAddressAndPort input)
+        protected boolean isValid(VirtualEndpoint input)
         {
             return !input.equals(FBUtilities.getBroadcastAddressAndPort()) && FailureDetector.instance.isAlive(input);
         }

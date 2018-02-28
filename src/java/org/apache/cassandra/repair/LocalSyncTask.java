@@ -21,13 +21,13 @@ import java.util.List;
 import java.util.UUID;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.streaming.PreviewKind;
 import org.apache.cassandra.streaming.ProgressInfo;
 import org.apache.cassandra.streaming.StreamEvent;
@@ -59,7 +59,7 @@ public class LocalSyncTask extends SyncTask implements StreamEventHandler
     }
 
     @VisibleForTesting
-    StreamPlan createStreamPlan(InetAddressAndPort dst, InetAddressAndPort preferred, List<Range<Token>> differences)
+    StreamPlan createStreamPlan(VirtualEndpoint dst, VirtualEndpoint preferred, List<Range<Token>> differences)
     {
         StreamPlan plan = new StreamPlan(StreamOperation.REPAIR, 1, false, false, pendingRepair, previewKind)
                           .listeners(this)
@@ -81,10 +81,10 @@ public class LocalSyncTask extends SyncTask implements StreamEventHandler
     @Override
     protected void startSync(List<Range<Token>> differences)
     {
-        InetAddressAndPort local = FBUtilities.getBroadcastAddressAndPort();
+        VirtualEndpoint local = FBUtilities.getBroadcastAddressAndPort();
         // We can take anyone of the node as source or destination, however if one is localhost, we put at source to avoid a forwarding
-        InetAddressAndPort dst = r2.endpoint.equals(local) ? r1.endpoint : r2.endpoint;
-        InetAddressAndPort preferred = SystemKeyspace.getPreferredIP(dst);
+        VirtualEndpoint dst = r2.endpoint.equals(local) ? r1.endpoint : r2.endpoint;
+        VirtualEndpoint preferred = SystemKeyspace.getPreferredIP(dst);
 
         String message = String.format("Performing streaming repair of %d ranges with %s", differences.size(), dst);
         logger.info("{} {}", previewKind.logPrefix(desc.sessionId), message);

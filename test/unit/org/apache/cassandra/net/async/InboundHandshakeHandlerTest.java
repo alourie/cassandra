@@ -24,6 +24,7 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 
 import com.google.common.net.InetAddresses;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -31,7 +32,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPipeline;
@@ -40,7 +40,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.compression.Lz4FrameDecoder;
 import io.netty.handler.codec.compression.Lz4FrameEncoder;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.net.async.HandshakeProtocol.FirstHandshakeMessage;
@@ -51,7 +50,7 @@ import static org.apache.cassandra.net.async.NettyFactory.Mode.MESSAGING;
 
 public class InboundHandshakeHandlerTest
 {
-    private static final InetAddressAndPort addr = InetAddressAndPort.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 0);
+    private static final VirtualEndpoint addr = VirtualEndpoint.getByAddressOverrideDefaults(InetAddresses.forString("127.0.0.1"), 0);
     private static final int MESSAGING_VERSION = MessagingService.current_version;
     private static final int VERSION_30 = MessagingService.VERSION_30;
 

@@ -24,11 +24,11 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.Test;
 
 import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataOutputBuffer;
-import org.apache.cassandra.locator.InetAddressAndPort;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -49,13 +49,13 @@ public class ForwardToContainerTest
 
     private void testVersion(int version) throws Exception
     {
-        InetAddressAndPort.initializeDefaultPort(65532);
-        List<InetAddressAndPort> addresses = ImmutableList.of(InetAddressAndPort.getByNameOverrideDefaults("127.0.0.1", 42),
-                                                              InetAddressAndPort.getByName("127.0.0.1"),
-                                                              InetAddressAndPort.getByName("127.0.0.1:7000"),
-                                                              InetAddressAndPort.getByNameOverrideDefaults("2001:0db8:0000:0000:0000:ff00:0042:8329", 42),
-                                                              InetAddressAndPort.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329"),
-                                                              InetAddressAndPort.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:7000"));
+        VirtualEndpoint.initializeDefaultPort(65532);
+        List<VirtualEndpoint> addresses = ImmutableList.of(VirtualEndpoint.getByNameOverrideDefaults("127.0.0.1", 42),
+                                                              VirtualEndpoint.getByName("127.0.0.1"),
+                                                              VirtualEndpoint.getByName("127.0.0.1:7000"),
+                                                              VirtualEndpoint.getByNameOverrideDefaults("2001:0db8:0000:0000:0000:ff00:0042:8329", 42),
+                                                              VirtualEndpoint.getByName("2001:0db8:0000:0000:0000:ff00:0042:8329"),
+                                                              VirtualEndpoint.getByName("[2001:0db8:0000:0000:0000:ff00:0042:8329]:7000"));
 
         ForwardToContainer ftc = new ForwardToContainer(addresses, new int[] { 44, 45, 46, 47, 48, 49 });
         ByteBuffer buffer;
@@ -75,13 +75,13 @@ public class ForwardToContainerTest
 
         assertTrue(Arrays.equals(ftc.messageIds, deserialized.messageIds));
 
-        Iterator<InetAddressAndPort> iterator = deserialized.targets.iterator();
+        Iterator<VirtualEndpoint> iterator = deserialized.targets.iterator();
         if (version >= MessagingService.VERSION_40)
         {
             for (int ii = 0; ii < addresses.size(); ii++)
             {
-                InetAddressAndPort original = addresses.get(ii);
-                InetAddressAndPort roundtripped = iterator.next();
+                VirtualEndpoint original = addresses.get(ii);
+                VirtualEndpoint roundtripped = iterator.next();
                 assertEquals(original, roundtripped);
             }
         }
@@ -89,8 +89,8 @@ public class ForwardToContainerTest
         {
             for (int ii = 0; ii < addresses.size(); ii++)
             {
-                InetAddressAndPort original = addresses.get(ii);
-                InetAddressAndPort roundtripped = iterator.next();
+                VirtualEndpoint original = addresses.get(ii);
+                VirtualEndpoint roundtripped = iterator.next();
                 assertEquals(original.address, roundtripped.address);
                 //3.0 can't send port numbers so you get the defaults
                 assertEquals(65532, roundtripped.port);

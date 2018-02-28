@@ -26,7 +26,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
 import org.apache.cassandra.db.SystemKeyspace;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.utils.UUIDGen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,28 +43,28 @@ public class HintedHandoffMetrics
     private static final MetricNameFactory factory = new DefaultNameFactory("HintedHandOffManager");
 
     /** Total number of hints which are not stored, This is not a cache. */
-    private final LoadingCache<InetAddressAndPort, DifferencingCounter> notStored = Caffeine.newBuilder()
+    private final LoadingCache<VirtualEndpoint, DifferencingCounter> notStored = Caffeine.newBuilder()
                                                                                             .executor(MoreExecutors.directExecutor())
                                                                                             .build(DifferencingCounter::new);
 
     /** Total number of hints that have been created, This is not a cache. */
-    private final LoadingCache<InetAddressAndPort, Counter> createdHintCounts = Caffeine.newBuilder()
+    private final LoadingCache<VirtualEndpoint, Counter> createdHintCounts = Caffeine.newBuilder()
                                                                                         .executor(MoreExecutors.directExecutor())
                                                                                         .build(address -> Metrics.counter(factory.createMetricName("Hints_created-" + address.toString().replace(':', '.'))));
 
-    public void incrCreatedHints(InetAddressAndPort address)
+    public void incrCreatedHints(VirtualEndpoint address)
     {
         createdHintCounts.get(address).inc();
     }
 
-    public void incrPastWindow(InetAddressAndPort address)
+    public void incrPastWindow(VirtualEndpoint address)
     {
         notStored.get(address).mark();
     }
 
     public void log()
     {
-        for (Entry<InetAddressAndPort, DifferencingCounter> entry : notStored.asMap().entrySet())
+        for (Entry<VirtualEndpoint, DifferencingCounter> entry : notStored.asMap().entrySet())
         {
             long difference = entry.getValue().difference();
             if (difference == 0)
@@ -79,7 +79,7 @@ public class HintedHandoffMetrics
         private final Counter meter;
         private long reported = 0;
 
-        public DifferencingCounter(InetAddressAndPort address)
+        public DifferencingCounter(VirtualEndpoint address)
         {
             //This changes the name of the metric, people can update their monitoring when upgrading?
             this.meter = Metrics.counter(factory.createMetricName("Hints_not_stored-" + address.toString().replace(':', '.')));

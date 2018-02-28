@@ -32,7 +32,7 @@ import com.google.common.net.HostAndPort;
 
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.cassandra.tools.BulkLoader.CmdLineOptions;
 
 import com.datastax.driver.core.AuthProvider;
@@ -86,7 +86,7 @@ public class LoaderOptions
     public final int connectionsPerHost;
     public final EncryptionOptions.ServerEncryptionOptions serverEncOptions;
     public final Set<InetSocketAddress> hosts;
-    public final Set<InetAddressAndPort> ignores;
+    public final Set<VirtualEndpoint> ignores;
     public final boolean allowServerPortDiscovery;
 
     LoaderOptions(Builder builder)
@@ -132,7 +132,7 @@ public class LoaderOptions
         Set<InetAddress> hostsArg = new HashSet<>();
         Set<InetAddress> ignoresArg = new HashSet<>();
         Set<InetSocketAddress> hosts = new HashSet<>();
-        Set<InetAddressAndPort> ignores = new HashSet<>();
+        Set<VirtualEndpoint> ignores = new HashSet<>();
         boolean allowServerPortDiscovery;
 
         Builder()
@@ -152,7 +152,7 @@ public class LoaderOptions
                 }
                 for (InetAddress host : ignoresArg)
                 {
-                    ignores.add(InetAddressAndPort.getByNameOverrideDefaults(host.getHostAddress(), storagePort));
+                    ignores.add(VirtualEndpoint.getByNameOverrideDefaults(host.getHostAddress(), storagePort));
                 }
             }
             catch (UnknownHostException e)
@@ -284,7 +284,7 @@ public class LoaderOptions
             return this;
         }
 
-        public Builder ignoresAndInternalPorts(Set<InetAddressAndPort> ignores)
+        public Builder ignoresAndInternalPorts(Set<VirtualEndpoint> ignores)
         {
             this.ignores.addAll(ignores);
             return this;
@@ -296,7 +296,7 @@ public class LoaderOptions
             return this;
         }
 
-        public Builder ignoreAndInternalPorts(InetAddressAndPort ignore)
+        public Builder ignoreAndInternalPorts(VirtualEndpoint ignore)
         {
             ignores.add(ignore);
             return this;
@@ -400,7 +400,7 @@ public class LoaderOptions
                     {
                         for (String node : nodes)
                         {
-                            ignores.add(InetAddressAndPort.getByNameOverrideDefaults(node.trim(), storagePort));
+                            ignores.add(VirtualEndpoint.getByNameOverrideDefaults(node.trim(), storagePort));
                         }
                     } catch (UnknownHostException e)
                     {
