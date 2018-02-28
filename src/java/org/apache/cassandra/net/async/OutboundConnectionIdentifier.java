@@ -19,6 +19,8 @@
 package org.apache.cassandra.net.async;
 
 import org.apache.cassandra.locator.VirtualEndpoint;
+import com.carrotsearch.hppc.IntObjectMap;
+import com.carrotsearch.hppc.IntObjectOpenHashMap;
 
 /**
  * Identifies an outbound messaging connection.
@@ -29,9 +31,34 @@ import org.apache.cassandra.locator.VirtualEndpoint;
  */
 public class OutboundConnectionIdentifier
 {
-    enum ConnectionType
+    public enum ConnectionType
     {
-        GOSSIP, LARGE_MESSAGE, SMALL_MESSAGE, STREAM
+        GOSSIP (0), LARGE_MESSAGE (1), SMALL_MESSAGE (2), STREAM (3);
+
+        private final int id;
+
+        ConnectionType(int id)
+        {
+            this.id = id;
+        }
+
+        public int getId()
+        {
+            return id;
+        }
+
+        private static final IntObjectMap<ConnectionType> idMap = new IntObjectOpenHashMap<>(values().length);
+        static
+        {
+            for (ConnectionType type : values())
+                idMap.put(type.id, type);
+        }
+
+        public static ConnectionType fromId(int id)
+        {
+            return idMap.get(id);
+        }
+
     }
 
     /**
