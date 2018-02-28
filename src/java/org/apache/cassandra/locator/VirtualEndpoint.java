@@ -26,6 +26,7 @@ import java.util.UUID;
 import com.google.common.base.Preconditions;
 import com.google.common.net.HostAndPort;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FastByteOperations;
@@ -185,27 +186,24 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
 
     public static VirtualEndpoint getByAddress(byte[] address) throws UnknownHostException
     {
-        return getByAddressOverrideDefaults(InetAddress.getByAddress(address), address, null);
+        return getByAddress(InetAddress.getByAddress(address));
     }
 
     public static VirtualEndpoint getByAddress(InetAddress address)
     {
-        return getByAddressOverrideDefaults(address, null);
-    }
-
-    public static VirtualEndpoint getByAddressOnly(InetAddress address)
-    {
-        return getByAddressOverrideDefaults(address, null, initialHostId);
+        UUID hostId = initialHostId;
+        if (DatabaseDescriptor.isClientInitialized())
+            hostId = SystemKeyspace.getLocalHostId();
+        return getByAddressOverrideDefaults(address, null, hostId);
     }
 
     public static VirtualEndpoint getByAddressOverrideDefaults(InetAddress address, Integer port)
     {
-        return getByAddressOverrideDefaults(address, port, SystemKeyspace.getLocalHostId());
-    }
+        UUID hostId = initialHostId;
+        if (DatabaseDescriptor.isClientInitialized())
+            hostId = SystemKeyspace.getLocalHostId();
 
-    public static VirtualEndpoint getByAddressOverrideDefaults(InetAddress address, byte[] addressBytes, Integer port)
-    {
-        return new VirtualEndpoint(address, addressBytes, port, SystemKeyspace.getLocalHostId());
+        return getByAddressOverrideDefaults(address, port, hostId);
     }
 
     public static VirtualEndpoint getByAddressOverrideDefaults(InetAddress address, Integer port, UUID hostId)
@@ -217,17 +215,6 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
             hostId = initialHostId;
 
         return new VirtualEndpoint(address, address.getAddress(), port, hostId);
-    }
-
-    public static VirtualEndpoint getByAddressOverrideDefaults(InetAddress address, byte[] addressBytes, Integer port, UUID hostId)
-    {
-        if (port == null)
-            port = defaultPort;
-
-        if (hostId == null)
-            hostId = initialHostId;
-
-        return new VirtualEndpoint(address, addressBytes, port, hostId);
     }
 
     public static VirtualEndpoint getLoopbackAddress()

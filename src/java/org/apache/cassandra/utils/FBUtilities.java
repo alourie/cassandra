@@ -34,6 +34,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -123,7 +124,7 @@ public class FBUtilities
     {
         if (localVirtualEndpoint == null)
         {
-            localVirtualEndpoint = VirtualEndpoint.getByAddressOnly(getJustLocalAddress());
+            localVirtualEndpoint = VirtualEndpoint.getByAddress(getJustLocalAddress());
         }
         return localVirtualEndpoint;
     }
@@ -150,7 +151,7 @@ public class FBUtilities
     {
         if (virtualEndpoint == null)
         {
-            virtualEndpoint = VirtualEndpoint.getByAddressOnly(getJustBroadcastAddress());
+            virtualEndpoint = VirtualEndpoint.getByAddress(getJustBroadcastAddress());
         }
         return virtualEndpoint;
     }
@@ -161,7 +162,7 @@ public class FBUtilities
     public static void setBroadcastInetAddress(InetAddress addr)
     {
         broadcastInetAddress = addr;
-        virtualEndpoint = VirtualEndpoint.getByAddressOnly(broadcastInetAddress);
+        virtualEndpoint = VirtualEndpoint.getByAddress(broadcastInetAddress);
     }
 
     /**
@@ -186,8 +187,7 @@ public class FBUtilities
     {
         if (broadcastNativeEndpoint == null)
             broadcastNativeEndpoint = VirtualEndpoint.getByAddressOverrideDefaults(getJustBroadcastNativeAddress(),
-                                                                              DatabaseDescriptor.getNativeTransportPort(),
-                                                                              null);
+                                                                              DatabaseDescriptor.getNativeTransportPort());
         return broadcastNativeEndpoint;
     }
 

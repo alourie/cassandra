@@ -120,7 +120,7 @@ public class StartupClusterConnectivityCheckerTest
         nodes.add(node);
         for (int i = 1; i < count; i++)
         {
-            node = VirtualEndpoint.getByAddressOnly(InetAddresses.increment(node.address));
+            node = VirtualEndpoint.getByAddress(InetAddresses.increment(node.address));
             nodes.add(node);
         }
         return nodes;

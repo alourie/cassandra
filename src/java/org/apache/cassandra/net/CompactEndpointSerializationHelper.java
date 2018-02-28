@@ -90,7 +90,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
             {
                 byte[] bytes = new byte[size];
                 in.readFully(bytes, 0, bytes.length);
-                return VirtualEndpoint.getByAddressOnly(InetAddress.getByAddress(bytes));
+                return VirtualEndpoint.getByAddress(InetAddress.getByAddress(bytes));
             }
             //Address and one port
             case 6:
@@ -100,7 +100,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
                 in.readFully(bytes);
 
                 int port = in.readShort() & 0xFFFF;
-                return VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByAddress(bytes), bytes, port, null);
+                return VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByAddress(bytes), port, null);
             }
             // Address, port and hostId
             case 22:
