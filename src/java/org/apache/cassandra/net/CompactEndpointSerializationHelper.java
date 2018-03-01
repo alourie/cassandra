@@ -109,7 +109,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
                 byte[] addressBytes = new byte[size - 18];
                 in.readFully(addressBytes);
 
-                int port = in.readShort();
+                int port = in.readShort() & 0xFFFF;
 
                 long mostSig = in.readLong();
                 long leastSig = in.readLong();
