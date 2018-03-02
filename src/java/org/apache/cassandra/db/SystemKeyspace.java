@@ -841,19 +841,19 @@ public final class SystemKeyspace
     }
 
     /**
-     * Get preferred IP for given endpoint if it is known. Otherwise this returns given endpoint itself.
+     * Get preferred an endpoint with an IP of the given endpoint if it is known. Otherwise this returns given endpoint itself.
      *
-     * @param ep endpoint address to check
-     * @return Preferred IP for given endpoint if present, otherwise returns given ep
+     * @param ep endpoint to check
+     * @return endpoint object with the preferred IP for given endpoint if present, otherwise returns given ep
      */
     public static VirtualEndpoint getPreferredIP(VirtualEndpoint ep)
     {
-        String req = "SELECT preferred_ip, preferred_port FROM system.%s WHERE peer=? AND peer_port = ?";
+        String req = "SELECT preferred_ip, preferred_port, host_id FROM system.%s WHERE peer=? AND peer_port = ?";
         UntypedResultSet result = executeInternal(String.format(req, PEERS_V2), ep.address, ep.port);
         if (!result.isEmpty() && result.one().has("preferred_ip"))
         {
             UntypedResultSet.Row row = result.one();
-            return VirtualEndpoint.getByAddressOverrideDefaults(row.getInetAddress("preferred_ip"), row.getInt("preferred_port"));
+            return VirtualEndpoint.getByAddressOverrideDefaults(row.getInetAddress("preferred_ip"), row.getInt("preferred_port"), row.getUUID("host_id"));
         }
         return ep;
     }

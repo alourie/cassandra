@@ -1909,12 +1909,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public String getLocalHostId()
     {
-        return getTokenMetadata().getHostId(FBUtilities.getBroadcastAddressAndPort()).toString();
+        return (FBUtilities.getBroadcastAddressAndPort()).hostId.toString();
     }
 
     public UUID getLocalHostUUID()
     {
-        return getTokenMetadata().getHostId(FBUtilities.getBroadcastAddressAndPort());
+        return FBUtilities.getBroadcastAddressAndPort().hostId;
     }
 
     public Map<String, String> getHostIdMap()
@@ -2643,9 +2643,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         logger.info("Removing tokens {} for {}", tokens, endpoint);
 
-        UUID hostId = tokenMetadata.getHostId(endpoint);
-        if (hostId != null && tokenMetadata.isMember(endpoint))
-            HintsService.instance.excise(hostId);
+        if (endpoint.hostId != null && tokenMetadata.isMember(endpoint))
+            HintsService.instance.excise(endpoint.hostId);
 
         removeEndpoint(endpoint);
         tokenMetadata.removeEndpoint(endpoint);
@@ -2940,9 +2939,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Nullable
-    public UUID getHostIdForEndpoint(VirtualEndpoint address)
+    public UUID getHostIdForEndpoint(VirtualEndpoint endpoint)
     {
-        return tokenMetadata.getHostId(address);
+        return endpoint.hostId;
     }
 
     /* These methods belong to the MBean interface */
@@ -4131,7 +4130,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // stream to the closest peer as chosen by the snitch
             DatabaseDescriptor.getEndpointSnitch().sortByProximity(FBUtilities.getBroadcastAddressAndPort(), candidates);
             VirtualEndpoint hintsDestinationHost = candidates.get(0);
-            return tokenMetadata.getHostId(hintsDestinationHost);
+            return hintsDestinationHost.hostId;
         }
     }
 
@@ -4406,8 +4405,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.warn("Removal not confirmed for for {}", StringUtils.join(this.replicatingNodes, ","));
             for (VirtualEndpoint endpoint : tokenMetadata.getLeavingEndpoints())
             {
-                UUID hostId = tokenMetadata.getHostId(endpoint);
-                Gossiper.instance.advertiseTokenRemoved(endpoint, hostId);
+                Gossiper.instance.advertiseTokenRemoved(endpoint);
                 excise(tokenMetadata.getTokens(endpoint), endpoint);
             }
             replicatingNodes.clear();
@@ -4430,10 +4428,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void removeNode(String hostIdString)
     {
-        VirtualEndpoint myAddress = FBUtilities.getBroadcastAddressAndPort();
-        UUID localHostId = tokenMetadata.getHostId(myAddress);
-        UUID hostId = UUID.fromString(hostIdString);
-        VirtualEndpoint endpoint = tokenMetadata.getEndpointForHostId(hostId);
+        VirtualEndpoint localEndpoint = FBUtilities.getBroadcastAddressAndPort();
+        UUID localHostId = localEndpoint.hostId;
+        VirtualEndpoint endpoint = tokenMetadata.getEndpointForHostId(UUID.fromString(hostIdString));
 
         if (endpoint == null)
             throw new UnsupportedOperationException("Host ID not found.");
@@ -4441,7 +4438,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!tokenMetadata.isMember(endpoint))
             throw new UnsupportedOperationException("Node to be removed is not a member of the token ring");
 
-        if (endpoint.equals(myAddress))
+        if (endpoint.equals(localEndpoint))
              throw new UnsupportedOperationException("Cannot remove self");
 
         if (Gossiper.instance.getLiveMembers().contains(endpoint))
@@ -4482,10 +4479,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         // the gossiper will handle spoofing this node's state to REMOVING_TOKEN for us
         // we add our own token so other nodes to let us know when they're done
-        Gossiper.instance.advertiseRemoving(endpoint, hostId, localHostId);
+        Gossiper.instance.advertiseRemoving(endpoint, localHostId);
 
         // kick off streaming commands
-        restoreReplicaCount(endpoint, myAddress);
+        restoreReplicaCount(endpoint, localEndpoint);
 
         // wait for ReplicationFinishedVerbHandler to signal we're done
         while (!replicatingNodes.isEmpty())
@@ -4496,7 +4493,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         excise(tokens, endpoint);
 
         // gossiper will indicate the token has left
-        Gossiper.instance.advertiseTokenRemoved(endpoint, hostId);
+        Gossiper.instance.advertiseTokenRemoved(endpoint);
 
         replicatingNodes.clear();
         removingNode = null;

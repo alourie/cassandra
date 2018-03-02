@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.*;
@@ -54,7 +55,7 @@ public class TokenMetadata
     private final BiMultiValMap<Token, VirtualEndpoint> tokenToEndpointMap;
 
     /** Maintains endpoint to host ID map of every node in the cluster */
-    private final BiMap<VirtualEndpoint, UUID> endpointToHostIdMap;
+    private final Set<VirtualEndpoint> allEndpoints;
 
     // Prior to CASSANDRA-603, we just had <tt>Map<Range, VirtualEndpoint> pendingRanges<tt>,
     // which was added to when a node began bootstrap and removed from when it finished.
@@ -105,17 +106,17 @@ public class TokenMetadata
     public TokenMetadata()
     {
         this(SortedBiMultiValMap.<Token, VirtualEndpoint>create(),
-             HashBiMap.create(),
+             new HashSet<>(),
              new Topology(),
              DatabaseDescriptor.getPartitioner());
     }
 
-    private TokenMetadata(BiMultiValMap<Token, VirtualEndpoint> tokenToEndpointMap, BiMap<VirtualEndpoint, UUID> endpointsMap, Topology topology, IPartitioner partitioner)
+    private TokenMetadata(BiMultiValMap<Token, VirtualEndpoint> tokenToEndpointMap, Set<VirtualEndpoint> endpoints, Topology topology, IPartitioner partitioner)
     {
         this.tokenToEndpointMap = tokenToEndpointMap;
         this.topology = topology;
         this.partitioner = partitioner;
-        endpointToHostIdMap = endpointsMap;
+        allEndpoints = endpoints;
         sortedTokens = sortTokens();
     }
 
@@ -125,7 +126,7 @@ public class TokenMetadata
     @VisibleForTesting
     public TokenMetadata cloneWithNewPartitioner(IPartitioner newPartitioner)
     {
-        return new TokenMetadata(tokenToEndpointMap, endpointToHostIdMap, topology, newPartitioner);
+        return new TokenMetadata(tokenToEndpointMap, allEndpoints, topology, newPartitioner);
     }
 
     private ArrayList<Token> sortTokens()
@@ -227,26 +228,38 @@ public class TokenMetadata
         assert hostId != null;
         assert endpoint != null;
 
+        final VirtualEndpoint newEndpoint = VirtualEndpoint.getByAddressOverrideDefaults(endpoint.address, endpoint.port, hostId);
+
         lock.writeLock().lock();
         try
         {
-            VirtualEndpoint storedEp = endpointToHostIdMap.inverse().get(hostId);
-            if (storedEp != null)
+            // All other cases (not yet in the list or ID collision)
+            if (!allEndpoints.contains(newEndpoint))
             {
-                if (!storedEp.equals(endpoint) && (FailureDetector.instance.isAlive(storedEp)))
+                Set<VirtualEndpoint> storedEndpointsWithAddress = allEndpoints.stream().filter(e -> e.equalAddresses(endpoint)).collect(Collectors.toSet());
+
+                // Check if another node with the same IP/Port combo is already running
+                for (VirtualEndpoint ep : storedEndpointsWithAddress)
+                    if (FailureDetector.instance.isAlive(ep))
+                        throw new RuntimeException(String.format("Host ID collision between active endpoint %s and %s (id=%s)",
+                                                                 ep,
+                                                                 endpoint,
+                                                                 hostId));
+
+                // if we're here, no other live node with the same IP found, so check if there's one uninitialized yet
+                Optional<VirtualEndpoint> uninitializedEndpoint = storedEndpointsWithAddress.stream().filter(e -> e.hostId.equals(VirtualEndpoint.initialHostId)).findFirst();
+
+                // if there's an entry with IP but not yet initialised, initialise it, otherwise add it to the set
+                if (uninitializedEndpoint.isPresent())
                 {
-                    throw new RuntimeException(String.format("Host ID collision between active endpoint %s and %s (id=%s)",
-                                                             storedEp,
-                                                             endpoint,
-                                                             hostId));
+                    uninitializedEndpoint.get().hostId = hostId;
+                }
+                else
+                {
+                    allEndpoints.add(newEndpoint);
+                    endpoint.hostId = hostId;
                 }
             }
-
-            UUID storedId = endpointToHostIdMap.get(endpoint);
-            if ((storedId != null) && (!storedId.equals(hostId)))
-                logger.warn("Changing {}'s host ID from {} to {}", endpoint, storedId, hostId);
-
-            endpointToHostIdMap.forcePut(endpoint, hostId);
         }
         finally
         {
@@ -255,27 +268,19 @@ public class TokenMetadata
 
     }
 
-    /** Return the unique host ID for an end-point. */
-    public UUID getHostId(VirtualEndpoint endpoint)
-    {
-        lock.readLock().lock();
-        try
-        {
-            return endpointToHostIdMap.get(endpoint);
-        }
-        finally
-        {
-            lock.readLock().unlock();
-        }
-    }
-
     /** Return the end-point for a unique host ID */
     public VirtualEndpoint getEndpointForHostId(UUID hostId)
     {
         lock.readLock().lock();
         try
         {
-            return endpointToHostIdMap.inverse().get(hostId);
+            final Optional<VirtualEndpoint> endpoint = allEndpoints.stream().filter(e -> e.hostId.equals(hostId)).findFirst();
+            if (!endpoint.isPresent())
+            {
+                throw new RuntimeException(String.format("Host with ID %s doesn't exist!", hostId));
+            }
+
+            return endpoint.get();
         }
         finally
         {
@@ -289,9 +294,7 @@ public class TokenMetadata
         lock.readLock().lock();
         try
         {
-            Map<VirtualEndpoint, UUID> readMap = new HashMap<>();
-            readMap.putAll(endpointToHostIdMap);
-            return readMap;
+            return allEndpoints.stream().collect(Collectors.toMap(e -> e, e -> e.hostId));
         }
         finally
         {
@@ -447,7 +450,7 @@ public class TokenMetadata
             {
                 logger.debug("Node {} failed during replace.", endpoint);
             }
-            endpointToHostIdMap.remove(endpoint);
+            allEndpoints.remove(endpoint);
             sortedTokens = sortTokens();
             invalidateCachedRings();
         }
@@ -610,7 +613,7 @@ public class TokenMetadata
         try
         {
             return new TokenMetadata(SortedBiMultiValMap.create(tokenToEndpointMap),
-                                     HashBiMap.create(endpointToHostIdMap),
+                                     new HashSet<>(allEndpoints),
                                      new Topology(topology),
                                      partitioner);
         }
@@ -982,7 +985,7 @@ public class TokenMetadata
         lock.readLock().lock();
         try
         {
-            return ImmutableSet.copyOf(endpointToHostIdMap.keySet());
+            return ImmutableSet.copyOf(allEndpoints);
         }
         finally
         {
@@ -997,7 +1000,7 @@ public class TokenMetadata
      */
     public int getSizeOfAllEndpoints()
     {
-        return endpointToHostIdMap.size();
+        return allEndpoints.size();
     }
 
     /** caller should not modify leavingEndpoints */
@@ -1118,7 +1121,7 @@ public class TokenMetadata
         try
         {
             tokenToEndpointMap.clear();
-            endpointToHostIdMap.clear();
+            allEndpoints.clear();
             bootstrapTokens.clear();
             leavingEndpoints.clear();
             pendingRanges.clear();

@@ -48,7 +48,7 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
 {
     private static final long serialVersionUID = 0;
 
-    private static final UUID initialHostId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    public static final UUID initialHostId = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     //Store these here to avoid requiring DatabaseDescriptor to be loaded. DatabaseDescriptor will set
     //these when it loads the config. A lot of unit tests won't end up loading DatabaseDescriptor.
@@ -57,9 +57,9 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
     static volatile int defaultPort = 7000;
 
     public final InetAddress address;
-    public final UUID hostId;
     public final byte[] addressBytes;
     public final int port;
+    public UUID hostId;
 
     private VirtualEndpoint(InetAddress address, byte[] addressBytes, int port, UUID hostId)
     {
@@ -84,20 +84,26 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
     @Override
     public boolean equals(Object o)
     {
+        VirtualEndpoint that = (VirtualEndpoint) o;
+        return equalAddresses(o) && hostId.equals(that.hostId);
+    }
+
+    public boolean equalAddresses(Object o)
+    {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
         VirtualEndpoint that = (VirtualEndpoint) o;
 
         if (port != that.port) return false;
-        return address.equals(that.address) && hostId.equals(that.hostId);
+        return address.equals(that.address);
     }
 
     @Override
     public int hashCode()
     {
         int result = address.hashCode();
-        result = 31 * result + port;
+        result = 31 * result + port + hostId.hashCode();
         return result;
     }
 
@@ -133,10 +139,6 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
         {
             return address.getHostAddress();
         }
-    }
-
-    public UUID getHostId() {
-        return hostId;
     }
 
     @Override
@@ -181,7 +183,7 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
         {
             port = hap.getPort();
         }
-        return getByAddressOverrideDefaults(InetAddress.getByName(hap.getHost()), port, initialHostId);
+        return getByAddressOverrideDefaults(InetAddress.getByName(hap.getHost()), port);
     }
 
     public static VirtualEndpoint getByAddress(byte[] address) throws UnknownHostException

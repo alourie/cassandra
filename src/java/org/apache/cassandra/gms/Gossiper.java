@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import javax.xml.crypto.Data;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -540,15 +541,14 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      * This should never be called unless this coordinator has had 'removenode' invoked
      *
      * @param endpoint    - the endpoint being removed
-     * @param hostId      - the ID of the host being removed
      * @param localHostId - my own host ID for replication coordination
      */
-    public void advertiseRemoving(VirtualEndpoint endpoint, UUID hostId, UUID localHostId)
+    public void advertiseRemoving(VirtualEndpoint endpoint, UUID localHostId)
     {
         EndpointState epState = endpointStateMap.get(endpoint);
         // remember this node's generation
         int generation = epState.getHeartBeatState().getGeneration();
-        logger.info("Removing host: {}", hostId);
+        logger.info("Removing host: {}", endpoint.hostId);
         logger.info("Sleeping for {}ms to ensure {} does not change", StorageService.RING_DELAY, endpoint);
         Uninterruptibles.sleepUninterruptibly(StorageService.RING_DELAY, TimeUnit.MILLISECONDS);
         // make sure it did not change
@@ -560,8 +560,8 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         epState.updateTimestamp(); // make sure we don't evict it too soon
         epState.getHeartBeatState().forceNewerGenerationUnsafe();
         Map<ApplicationState, VersionedValue> states = new EnumMap<>(ApplicationState.class);
-        states.put(ApplicationState.STATUS_WITH_PORT, StorageService.instance.valueFactory.removingNonlocal(hostId));
-        states.put(ApplicationState.STATUS, StorageService.instance.valueFactory.removingNonlocal(hostId));
+        states.put(ApplicationState.STATUS_WITH_PORT, StorageService.instance.valueFactory.removingNonlocal(endpoint.hostId));
+        states.put(ApplicationState.STATUS, StorageService.instance.valueFactory.removingNonlocal(endpoint.hostId));
         states.put(ApplicationState.REMOVAL_COORDINATOR, StorageService.instance.valueFactory.removalCoordinator(localHostId));
         epState.addApplicationStates(states);
         endpointStateMap.put(endpoint, epState);
@@ -572,16 +572,15 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      * This should only be called after advertiseRemoving
      *
      * @param endpoint
-     * @param hostId
      */
-    public void advertiseTokenRemoved(VirtualEndpoint endpoint, UUID hostId)
+    public void advertiseTokenRemoved(VirtualEndpoint endpoint)
     {
         EndpointState epState = endpointStateMap.get(endpoint);
         epState.updateTimestamp(); // make sure we don't evict it too soon
         epState.getHeartBeatState().forceNewerGenerationUnsafe();
         long expireTime = computeExpireTime();
-        epState.addApplicationState(ApplicationState.STATUS_WITH_PORT, StorageService.instance.valueFactory.removedNonlocal(hostId, expireTime));
-        epState.addApplicationState(ApplicationState.STATUS, StorageService.instance.valueFactory.removedNonlocal(hostId, expireTime));
+        epState.addApplicationState(ApplicationState.STATUS_WITH_PORT, StorageService.instance.valueFactory.removedNonlocal(endpoint.hostId, expireTime));
+        epState.addApplicationState(ApplicationState.STATUS, StorageService.instance.valueFactory.removedNonlocal(endpoint.hostId, expireTime));
         logger.info("Completing removal of {}", endpoint);
         addExpireTimeForEndpoint(endpoint, expireTime);
         endpointStateMap.put(endpoint, epState);
@@ -999,12 +998,12 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     }
 
-    private void markAlive(final VirtualEndpoint addr, final EndpointState localState)
+    private void markAlive(final VirtualEndpoint endpoint, final EndpointState localState)
     {
         localState.markDead();
 
         MessageOut<EchoMessage> echoMessage = new MessageOut<EchoMessage>(MessagingService.Verb.ECHO, EchoMessage.instance, EchoMessage.serializer);
-        logger.trace("Sending a EchoMessage to {}", addr);
+        logger.trace("Sending a EchoMessage to {}", endpoint);
         IAsyncCallback echoHandler = new IAsyncCallback()
         {
             public boolean isLatencyForSnitch()
@@ -1014,42 +1013,42 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
             public void response(MessageIn msg)
             {
-                realMarkAlive(addr, localState);
+                realMarkAlive(endpoint, localState);
             }
         };
 
-        MessagingService.instance().sendRR(echoMessage, addr, echoHandler);
+        MessagingService.instance().sendRR(echoMessage, endpoint, echoHandler);
     }
 
     @VisibleForTesting
-    public void realMarkAlive(final VirtualEndpoint addr, final EndpointState localState)
+    public void realMarkAlive(final VirtualEndpoint endpoint, final EndpointState localState)
     {
         if (logger.isTraceEnabled())
-            logger.trace("marking as alive {}", addr);
+            logger.trace("marking as alive {}", endpoint);
         localState.markAlive();
         localState.updateTimestamp(); // prevents doStatusCheck from racing us and evicting if it was down > aVeryLongTime
-        liveEndpoints.add(addr);
-        unreachableEndpoints.remove(addr);
-        expireTimeEndpointMap.remove(addr);
-        logger.debug("removing expire time for endpoint : {}", addr);
-        logger.info("InetAddress {} is now UP", addr);
+        liveEndpoints.add(endpoint);
+        unreachableEndpoints.remove(endpoint);
+        expireTimeEndpointMap.remove(endpoint);
+        logger.debug("removing expire time for endpoint : {}", endpoint);
+        logger.info("InetAddress {} is now UP", endpoint);
         for (IEndpointStateChangeSubscriber subscriber : subscribers)
-            subscriber.onAlive(addr, localState);
+            subscriber.onAlive(endpoint, localState);
         if (logger.isTraceEnabled())
             logger.trace("Notified {}", subscribers);
     }
 
     @VisibleForTesting
-    public void markDead(VirtualEndpoint addr, EndpointState localState)
+    public void markDead(VirtualEndpoint endpoint, EndpointState localState)
     {
         if (logger.isTraceEnabled())
-            logger.trace("marking as down {}", addr);
+            logger.trace("marking as down {}", endpoint);
         localState.markDead();
-        liveEndpoints.remove(addr);
-        unreachableEndpoints.put(addr, System.nanoTime());
-        logger.info("InetAddress {} is now DOWN", addr);
+        liveEndpoints.remove(endpoint);
+        unreachableEndpoints.put(endpoint, System.nanoTime());
+        logger.info("InetAddress {} is now DOWN", endpoint);
         for (IEndpointStateChangeSubscriber subscriber : subscribers)
-            subscriber.onDead(addr, localState);
+            subscriber.onDead(endpoint, localState);
         if (logger.isTraceEnabled())
             logger.trace("Notified {}", subscribers);
     }
@@ -1216,14 +1215,14 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         }
     }
 
-    private void applyNewStates(VirtualEndpoint addr, EndpointState localState, EndpointState remoteState)
+    private void applyNewStates(VirtualEndpoint endpoint, EndpointState localState, EndpointState remoteState)
     {
         // don't assert here, since if the node restarts the version will go back to zero
         int oldVersion = localState.getHeartBeatState().getHeartBeatVersion();
 
         localState.setHeartBeatState(remoteState.getHeartBeatState());
         if (logger.isTraceEnabled())
-            logger.trace("Updating heartbeat state version to {} from {} for {} ...", localState.getHeartBeatState().getHeartBeatVersion(), oldVersion, addr);
+            logger.trace("Updating heartbeat state version to {} from {} for {} ...", localState.getHeartBeatState().getHeartBeatVersion(), oldVersion, endpoint);
 
         Set<Entry<ApplicationState, VersionedValue>> remoteStates = remoteState.states();
         assert remoteState.getHeartBeatState().getGeneration() == localState.getHeartBeatState().getGeneration();
@@ -1245,24 +1244,24 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         }).collect(Collectors.toSet());
 
         for (Entry<ApplicationState, VersionedValue> remoteEntry : filtered)
-            doOnChangeNotifications(addr, remoteEntry.getKey(), remoteEntry.getValue());
+            doOnChangeNotifications(endpoint, remoteEntry.getKey(), remoteEntry.getValue());
     }
 
     // notify that a local application state is going to change (doesn't get triggered for remote changes)
-    private void doBeforeChangeNotifications(VirtualEndpoint addr, EndpointState epState, ApplicationState apState, VersionedValue newValue)
+    private void doBeforeChangeNotifications(VirtualEndpoint endpoint, EndpointState epState, ApplicationState apState, VersionedValue newValue)
     {
         for (IEndpointStateChangeSubscriber subscriber : subscribers)
         {
-            subscriber.beforeChange(addr, epState, apState, newValue);
+            subscriber.beforeChange(endpoint, epState, apState, newValue);
         }
     }
 
     // notify that an application state has changed
-    private void doOnChangeNotifications(VirtualEndpoint addr, ApplicationState state, VersionedValue value)
+    private void doOnChangeNotifications(VirtualEndpoint endpoint, ApplicationState state, VersionedValue value)
     {
         for (IEndpointStateChangeSubscriber subscriber : subscribers)
         {
-            subscriber.onChange(addr, state, value);
+            subscriber.onChange(endpoint, state, value);
         }
     }
 
@@ -1465,7 +1464,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         for (VirtualEndpoint seed : DatabaseDescriptor.getSeeds())
         {
-            if (seed.equals(FBUtilities.getBroadcastAddressAndPort()))
+            if (seed.equalAddresses(FBUtilities.getBroadcastAddressAndPort()))
                 continue;
             seeds.add(seed);
         }
@@ -1677,12 +1676,13 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     }
 
     @VisibleForTesting
-    public void initializeNodeUnsafe(VirtualEndpoint addr, UUID uuid, int generationNbr)
+    public void initializeNodeUnsafe(VirtualEndpoint endpoint, UUID uuid, int generationNbr)
     {
+        endpoint.hostId = uuid;
         HeartBeatState hbState = new HeartBeatState(generationNbr);
         EndpointState newState = new EndpointState(hbState);
         newState.markAlive();
-        EndpointState oldState = endpointStateMap.putIfAbsent(addr, newState);
+        EndpointState oldState = endpointStateMap.putIfAbsent(endpoint, newState);
         EndpointState localState = oldState == null ? newState : oldState;
 
         // always add the version state
