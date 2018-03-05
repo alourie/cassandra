@@ -880,11 +880,13 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return endpointStateMap.entrySet();
     }
 
+    // TODO: just return HostID from the endpoint?
     public UUID getHostId(VirtualEndpoint endpoint)
     {
         return getHostId(endpoint, endpointStateMap);
     }
 
+    // TODO: just return HostID from endpoint or actually fetch it from the state?
     public UUID getHostId(VirtualEndpoint endpoint, Map<VirtualEndpoint, EndpointState> epStates)
     {
         return UUID.fromString(epStates.get(endpoint).getApplicationState(ApplicationState.HOST_ID).value);

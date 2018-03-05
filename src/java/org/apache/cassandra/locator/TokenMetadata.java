@@ -233,7 +233,6 @@ public class TokenMetadata
         lock.writeLock().lock();
         try
         {
-            // All other cases (not yet in the list or ID collision)
             if (!allEndpoints.contains(newEndpoint))
             {
                 Set<VirtualEndpoint> storedEndpointsWithAddress = allEndpoints.stream().filter(e -> e.equalAddresses(endpoint)).collect(Collectors.toSet());
@@ -269,15 +268,15 @@ public class TokenMetadata
     }
 
     /** Return the end-point for a unique host ID */
-    public VirtualEndpoint getEndpointForHostId(UUID hostId)
+    public VirtualEndpoint getEndpointForHostId(UUID otherHostId)
     {
         lock.readLock().lock();
         try
         {
-            final Optional<VirtualEndpoint> endpoint = allEndpoints.stream().filter(e -> e.hostId.equals(hostId)).findFirst();
+            final Optional<VirtualEndpoint> endpoint = allEndpoints.stream().filter(e -> e.hostId.equals(otherHostId)).findFirst();
             if (!endpoint.isPresent())
             {
-                throw new RuntimeException(String.format("Host with ID %s doesn't exist!", hostId));
+                throw new RuntimeException(String.format("Host with ID %s doesn't exist!", otherHostId));
             }
 
             return endpoint.get();

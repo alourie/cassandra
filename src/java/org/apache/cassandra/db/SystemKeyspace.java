@@ -808,11 +808,12 @@ public final class SystemKeyspace
     public static SetMultimap<VirtualEndpoint, Token> loadTokens()
     {
         SetMultimap<VirtualEndpoint, Token> tokenMap = HashMultimap.create();
-        for (UntypedResultSet.Row row : executeInternal("SELECT peer, peer_port, tokens FROM system." + PEERS_V2))
+        for (UntypedResultSet.Row row : executeInternal("SELECT peer, peer_port, host_id, tokens FROM system." + PEERS_V2))
         {
             InetAddress address = row.getInetAddress("peer");
             Integer port = row.getInt("peer_port");
-            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port);
+            UUID hostId = row.getUUID("host_id");
+            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port, hostId);
             if (row.has("tokens"))
                 tokenMap.putAll(peer, deserializeTokens(row.getSet("tokens", UTF8Type.instance)));
         }
@@ -831,11 +832,12 @@ public final class SystemKeyspace
         {
             InetAddress address = row.getInetAddress("peer");
             Integer port = row.getInt("peer_port");
-            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port);
+            UUID hostId = VirtualEndpoint.initialHostId;
             if (row.has("host_id"))
-            {
-                hostIdMap.put(peer, row.getUUID("host_id"));
-            }
+                hostId = row.getUUID("host_id");
+
+            VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port, hostId);
+            hostIdMap.put(peer, hostId);
         }
         return hostIdMap;
     }

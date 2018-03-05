@@ -2101,6 +2101,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                         break;
                     case HOST_ID:
                         SystemKeyspace.updatePeerInfo(endpoint, "host_id", UUID.fromString(value.value));
+                        tokenMetadata.updateHostId(UUID.fromString(value.value), endpoint);
                         break;
                     case RPC_READY:
                         notifyRpcChange(endpoint, epState.isRpcReady());
@@ -2189,6 +2190,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     break;
                 case HOST_ID:
                     SystemKeyspace.updatePeerInfo(endpoint, "host_id", UUID.fromString(entry.getValue().value));
+                    tokenMetadata.updateHostId(UUID.fromString(entry.getValue().value), endpoint);
                     break;
             }
         }
@@ -2200,6 +2202,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                                    VirtualEndpoint.getByAddressOverrideDefaults(native_address,
                                                                                                    native_port));
         }
+
     }
 
     private void notifyRpcChange(VirtualEndpoint endpoint, boolean ready)
@@ -2442,7 +2445,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 }
             }
             else
+            {
+                logger.info("Updating node {} with id {}", endpoint.toStringWithHostId(true), hostId.toString());
                 tokenMetadata.updateHostId(hostId, endpoint);
+            }
         }
 
         for (final Token token : tokens)

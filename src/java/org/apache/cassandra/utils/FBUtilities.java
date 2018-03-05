@@ -155,7 +155,6 @@ public class FBUtilities
         }
         return virtualEndpoint;
     }
-
     /**
      * <b>THIS IS FOR TESTING ONLY!!</b>
      */

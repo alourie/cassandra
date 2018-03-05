@@ -120,6 +120,8 @@ public class DatabaseDescriptor
     private static boolean toolInitialized;
     private static boolean daemonInitialized;
 
+    private static boolean inTest;
+
     private static final int searchConcurrencyFactor = Integer.parseInt(System.getProperty(Config.PROPERTY_PREFIX + "search_concurrency_factor", "1"));
 
     private static final boolean disableSTCSInL0 = Boolean.getBoolean(Config.PROPERTY_PREFIX + "disable_stcs_in_l0");
@@ -298,6 +300,10 @@ public class DatabaseDescriptor
             throw new ConfigurationException("Configured " + configName + " \"" + intf + "\" caused an exception", e);
         }
     }
+
+    public static void setInTest(final boolean runningTest) { inTest = runningTest; }
+
+    public static boolean isInTest() { return inTest; }
 
     private static void setConfig(Config config)
     {
