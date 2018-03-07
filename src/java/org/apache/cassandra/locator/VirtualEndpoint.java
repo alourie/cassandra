@@ -207,9 +207,10 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
     {
 
         UUID hostId = initialHostId;
-        final boolean testState = DatabaseDescriptor.isInTest() && MessagingService.instance().isListening();
-        final boolean fullState = DatabaseDescriptor.isClientOrToolInitialized();
-        if (testState || fullState)
+//
+//        final boolean messagingServiceListening = DatabaseDescriptor.isInTest() && MessagingService.test().isListening();
+//        final boolean fullState = DatabaseDescriptor.isClientInitialized();
+        if (DatabaseDescriptor.isLocalDataRetreiveable())
             hostId = SystemKeyspace.getLocalHostId();
 
         return getByAddressOverrideDefaults(address, port, hostId);

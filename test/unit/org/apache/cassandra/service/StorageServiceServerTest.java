@@ -75,7 +75,7 @@ public class StorageServiceServerTest
     {
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
-        DatabaseDescriptor.setInTest(true);
+        DatabaseDescriptor.setLocalDataRetrievable(true);
         StorageService.instance.initServer(0);
         for (String path : DatabaseDescriptor.getAllDataFileLocations())
         {
@@ -87,7 +87,7 @@ public class StorageServiceServerTest
         // stopping the client.
         //StorageService.instance.decommission();
         StorageService.instance.stopClient();
-        DatabaseDescriptor.setInTest(false);
+        DatabaseDescriptor.setLocalDataRetrievable(false);
     }
 
     @Test

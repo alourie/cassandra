@@ -321,6 +321,9 @@ public class CassandraDaemon
             throw new RuntimeException(e);
         }
 
+        // Mark system keyspace readable
+        DatabaseDescriptor.setLocalDataRetrievable(true);
+
         // Re-populate token metadata after commit log recover (new peers might be loaded onto system keyspace #10293)
         StorageService.instance.populateTokenMetadata();
 

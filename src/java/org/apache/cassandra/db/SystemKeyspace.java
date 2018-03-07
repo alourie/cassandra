@@ -1091,6 +1091,7 @@ public final class SystemKeyspace
      */
     public static UUID setLocalHostId(UUID hostId)
     {
+
         String req = "INSERT INTO system.%s (key, host_id) VALUES ('%s', ?)";
         executeInternal(format(req, LOCAL, LOCAL), hostId);
         return hostId;

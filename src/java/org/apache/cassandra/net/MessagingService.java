@@ -537,7 +537,7 @@ public final class MessagingService implements MessagingServiceMBean
         public static final MessagingService instance = new MessagingService(true);
     }
 
-    static MessagingService test()
+    public static MessagingService test()
     {
         return MSTestHandle.instance;
     }

@@ -120,7 +120,7 @@ public class DatabaseDescriptor
     private static boolean toolInitialized;
     private static boolean daemonInitialized;
 
-    private static boolean inTest;
+    private static boolean canReadLocalData;
 
     private static final int searchConcurrencyFactor = Integer.parseInt(System.getProperty(Config.PROPERTY_PREFIX + "search_concurrency_factor", "1"));
 
@@ -301,9 +301,9 @@ public class DatabaseDescriptor
         }
     }
 
-    public static void setInTest(final boolean runningTest) { inTest = runningTest; }
+    public static void setLocalDataRetrievable(final boolean can) { canReadLocalData = can; }
 
-    public static boolean isInTest() { return inTest; }
+    public static boolean isLocalDataRetreiveable() { return canReadLocalData; }
 
     private static void setConfig(Config config)
     {

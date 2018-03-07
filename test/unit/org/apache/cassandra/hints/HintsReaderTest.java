@@ -20,6 +20,7 @@ package org.apache.cassandra.hints;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.Iterator;
@@ -31,6 +32,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.cql3.CQLTester;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.RowUpdateBuilder;
 import org.apache.cassandra.db.rows.Cell;
@@ -61,6 +64,7 @@ public class HintsReaderTest
         SchemaLoader.prepareServer();
 
         descriptor = new HintsDescriptor(UUID.randomUUID(), System.currentTimeMillis());
+
     }
 
     private static Mutation createMutation(int index, long timestamp, String ks, String tb)
@@ -153,6 +157,7 @@ public class HintsReaderTest
     @Test
     public void testDroppedTableRead() throws IOException
     {
+
         String ks = "testDroppedTableRead";
         SchemaLoader.createKeyspace(ks,
                                     KeyspaceParams.simple(1),
