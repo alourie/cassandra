@@ -1,4 +1,7 @@
 4.0
+ * Use Murmur3 for validation compactions (CASSANDRA-14002)
+ * Comma at the end of the seed list is interpretated as localhost (CASSANDRA-14285)
+ * Refactor read executor and response resolver, abstract read repair (CASSANDRA-14058)
  * Add optional startup delay to wait until peers are ready (CASSANDRA-13993)
  * Add a few options to nodetool verify (CASSANDRA-14201)
  * CVE-2017-5929 Security vulnerability and redefine default log rotation policy (CASSANDRA-14183)
@@ -193,11 +196,16 @@
  * CQLSH: Don't pause when capturing data (CASSANDRA-13743)
  * nodetool clearsnapshot requires --all to clear all snapshots (CASSANDRA-13391)
  * Correctly count range tombstones in traces and tombstone thresholds (CASSANDRA-8527)
+ * cqlshrc.sample uses incorrect option for time formatting (CASSANDRA-14243)
+
 
 3.11.3
  * RateBasedBackPressure unnecessarily invokes a lock on the Guava RateLimiter  (CASSANDRA-14163)
  * Fix wildcard GROUP BY queries (CASSANDRA-14209)
 Merged from 3.0:
+ * Write to pending endpoint when view replica is also base replica (CASSANDRA-14251)
+ * Chain commit log marker potential performance regression in batch commit mode (CASSANDRA-14194)
+ * Fully utilise specified compaction threads (CASSANDRA-14210)
  * Pre-create deletion log records to finish compactions quicker (CASSANDRA-12763)
 
 
