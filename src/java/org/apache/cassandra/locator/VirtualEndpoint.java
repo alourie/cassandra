@@ -21,6 +21,9 @@ package org.apache.cassandra.locator;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import javax.xml.crypto.Data;
 
@@ -28,11 +31,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.SetMultimap;
 import com.google.common.net.HostAndPort;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.db.rows.EncodingStats;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FastByteOperations;
@@ -206,12 +211,23 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
     public static VirtualEndpoint getByAddressOverrideDefaults(InetAddress address, Integer port)
     {
 
-        UUID hostId = initialHostId;
-//
-//        final boolean messagingServiceListening = DatabaseDescriptor.isInTest() && MessagingService.test().isListening();
-//        final boolean fullState = DatabaseDescriptor.isClientInitialized();
+        UUID hostId = null;
+        VirtualEndpoint testEndpoint = getByAddressOverrideDefaults(address, port, hostId);
         if (DatabaseDescriptor.isLocalDataRetreiveable())
-            hostId = SystemKeyspace.getLocalHostId();
+        {
+            // Check if it's local first
+            hostId = SystemKeyspace.getLocalHostId(false);
+
+            // If not local, check peers
+            if (hostId == null)
+            {
+                Optional<VirtualEndpoint> ep = SystemKeyspace.loadHostIds().keySet()
+                             .stream().filter(e -> e.equalAddresses(testEndpoint)).findFirst();
+                if (ep.isPresent())
+                    hostId = ep.get().hostId;
+            }
+
+        }
 
         return getByAddressOverrideDefaults(address, port, hostId);
     }

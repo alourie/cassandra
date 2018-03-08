@@ -1677,6 +1677,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return inShadowRound;
     }
 
+    // TODO: Remove uuid
     @VisibleForTesting
     public void initializeNodeUnsafe(VirtualEndpoint endpoint, UUID uuid, int generationNbr)
     {

@@ -1073,6 +1073,16 @@ public final class SystemKeyspace
      */
     public static UUID getLocalHostId()
     {
+        return getLocalHostId(true);
+    }
+
+    /**
+     * Read the host ID from the system keyspace
+     * Creating (and storing) one if none exists and adding requested.
+     * Return @null  if doesn't exists and no adding requested
+     */
+    public static UUID getLocalHostId(boolean addIfMissing)
+    {
         String req = "SELECT host_id FROM system.%s WHERE key='%s'";
         UntypedResultSet result = executeInternal(format(req, LOCAL, LOCAL));
 
@@ -1080,10 +1090,15 @@ public final class SystemKeyspace
         if (!result.isEmpty() && result.one().has("host_id"))
             return result.one().getUUID("host_id");
 
-        // ID not found, generate a new one, persist, and then return it.
-        UUID hostId = UUID.randomUUID();
-        logger.warn("No host ID found, created {} (Note: This should happen exactly once per node).", hostId);
-        return setLocalHostId(hostId);
+        // ID not found, and if a new requested, generate it, persist, and then return .
+        if (addIfMissing)
+        {
+            UUID hostId = UUID.randomUUID();
+            logger.warn("No host ID found, created {} (Note: This should happen exactly once per node).", hostId);
+            return setLocalHostId(hostId);
+        }
+
+        return null;
     }
 
     /**

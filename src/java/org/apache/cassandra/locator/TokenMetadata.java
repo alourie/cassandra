@@ -223,6 +223,27 @@ public class TokenMetadata
      * Store an end-point to host ID mapping.  Each ID must be unique, and
      * cannot be changed after the fact.
      */
+    public void addIfMissing(VirtualEndpoint endpoint)
+    {
+        assert endpoint != null;
+
+        lock.writeLock().lock();
+        try
+        {
+            // allEndpoint is a set, so no need to check if it's there
+            allEndpoints.add(endpoint);
+        }
+        finally
+        {
+            lock.writeLock().unlock();
+        }
+
+    }
+
+    /**
+     * Store an end-point to host ID mapping.  Each ID must be unique, and
+     * cannot be changed after the fact.
+     */
     public void updateHostId(UUID hostId, VirtualEndpoint endpoint)
     {
         assert hostId != null;
@@ -274,12 +295,7 @@ public class TokenMetadata
         try
         {
             final Optional<VirtualEndpoint> endpoint = allEndpoints.stream().filter(e -> e.hostId.equals(otherHostId)).findFirst();
-            if (!endpoint.isPresent())
-            {
-                throw new RuntimeException(String.format("Host with ID %s doesn't exist!", otherHostId));
-            }
-
-            return endpoint.get();
+            return endpoint.orElse(null);
         }
         finally
         {

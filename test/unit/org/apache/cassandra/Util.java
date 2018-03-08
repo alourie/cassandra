@@ -22,6 +22,7 @@ package org.apache.cassandra;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOError;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -210,8 +211,8 @@ public class Util
 
         for (int i=0; i<endpointTokens.size(); i++)
         {
-            VirtualEndpoint ep = VirtualEndpoint.getByName("127.0.0." + String.valueOf(i + 1));
-            Gossiper.instance.initializeNodeUnsafe(ep, hostIds.get(i), 1);
+            VirtualEndpoint ep = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0." + (i + 1)), null, hostIds.get(i));
+            Gossiper.instance.initializeNodeUnsafe(ep, ep.hostId,1);
             Gossiper.instance.injectApplicationState(ep, ApplicationState.TOKENS, new VersionedValue.VersionedValueFactory(partitioner).tokens(Collections.singleton(endpointTokens.get(i))));
             ss.onChange(ep,
                         ApplicationState.STATUS_WITH_PORT,
@@ -220,6 +221,7 @@ public class Util
                         ApplicationState.STATUS,
                         new VersionedValue.VersionedValueFactory(partitioner).normal(Collections.singleton(endpointTokens.get(i))));
             hosts.add(ep);
+            ss.getTokenMetadata().addIfMissing(ep);
         }
 
         // check that all nodes are in token metadata

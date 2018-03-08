@@ -19,11 +19,14 @@
 
 package org.apache.cassandra.service;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.locator.*;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -475,7 +478,7 @@ public class MoveTest
 
     private void moveHost(VirtualEndpoint host, int token, TokenMetadata tmd, VersionedValue.VersionedValueFactory valueFactory )
     {
-        StorageService.instance.onChange(host, ApplicationState.STATUS, valueFactory.moving(new BigIntegerToken(String.valueOf(token))));
+        StorageService.instance.onChange(host, ApplicationState.STATUS_WITH_PORT, valueFactory.moving(new BigIntegerToken(String.valueOf(token))));
         PendingRangeCalculatorService.instance.blockUntilFinished();
         assertTrue(tmd.isMoving(host));
     }
@@ -649,21 +652,26 @@ public class MoveTest
         ss.setTokenMetadataUnsafe(tmd);
 
         // boot two new nodes with keyTokens.get(5) and keyTokens.get(7)
-        VirtualEndpoint boot1 = VirtualEndpoint.getByName("127.0.1.1");
-        Gossiper.instance.initializeNodeUnsafe(boot1, UUID.randomUUID(), 1);
+        VirtualEndpoint boot1 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.1.1"), null, UUID.randomUUID());
+        Gossiper.instance.initializeNodeUnsafe(boot1, boot1.hostId, 1);
         Gossiper.instance.injectApplicationState(boot1, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(5))));
         ss.onChange(boot1,
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(5))));
         PendingRangeCalculatorService.instance.blockUntilFinished();
 
-        VirtualEndpoint boot2 = VirtualEndpoint.getByName("127.0.1.2");
-        Gossiper.instance.initializeNodeUnsafe(boot2, UUID.randomUUID(), 1);
+        // Put it into peers to find it later
+        SystemKeyspace.updatePeerInfo(boot1, "host_id", boot1.hostId);
+
+        VirtualEndpoint boot2 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.1.2"), null, UUID.randomUUID());
+        Gossiper.instance.initializeNodeUnsafe(boot2, boot2.hostId, 1);
         Gossiper.instance.injectApplicationState(boot2, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(7))));
         ss.onChange(boot2,
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(7))));
         PendingRangeCalculatorService.instance.blockUntilFinished();
+        // Put it into peers to find it later
+        SystemKeyspace.updatePeerInfo(boot2, "host_id", boot2.hostId);
 
         // don't require test update every time a new keyspace is added to test/conf/cassandra.yaml
         Map<String, AbstractReplicationStrategy> keyspaceStrategyMap = new HashMap<String, AbstractReplicationStrategy>();

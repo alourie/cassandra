@@ -2446,8 +2446,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             else
             {
-                logger.info("Updating node {} with id {}", endpoint.toStringWithHostId(true), hostId.toString());
-                tokenMetadata.updateHostId(hostId, endpoint);
+                if (!endpoint.hostId.equals(hostId))
+                {
+                    logger.info("Updating node {} with id {}", endpoint.toStringWithHostId(true), hostId.toString());
+                    tokenMetadata.updateHostId(hostId, endpoint);
+                }
             }
         }
 

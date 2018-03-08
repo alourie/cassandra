@@ -233,6 +233,7 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
             }
             catch (UnknownTableException e)
             {
+
                 logger.warn("Failed to read a hint for {}: {} - table with id {} is unknown in file {}",
                             StorageService.instance.getEndpointForHostId(descriptor.hostId),
                             descriptor.hostId,
