@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.Gossiper;
@@ -49,6 +50,8 @@ public class EC2SnitchTest
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         Keyspace.setInitialized();
+        SystemKeyspace.persistLocalMetadata();
+        DatabaseDescriptor.setLocalDataRetrievable(true);
         StorageService.instance.initServer(0);
     }
 

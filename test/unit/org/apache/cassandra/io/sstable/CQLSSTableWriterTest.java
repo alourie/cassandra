@@ -36,6 +36,7 @@ import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.cql3.functions.UDHelper;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.*;
 import org.apache.cassandra.exceptions.*;
 import org.apache.cassandra.schema.Schema;
@@ -64,6 +65,8 @@ public class CQLSSTableWriterTest
     {
         SchemaLoader.cleanupAndLeaveDirs();
         Keyspace.setInitialized();
+        SystemKeyspace.persistLocalMetadata();
+        DatabaseDescriptor.setLocalDataRetrievable(true);
         StorageService.instance.initServer();
     }
 

@@ -18,6 +18,7 @@
 package org.apache.cassandra.locator;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,6 +36,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Token;
@@ -78,9 +80,9 @@ public class PropertyFileSnitchTest
         restoreOrigConfigFile();
 
         VirtualEndpoint[] hosts = {
-        VirtualEndpoint.getByName("127.0.0.1"), // this exists in the config file
-        VirtualEndpoint.getByName("127.0.0.2"), // this exists in the config file
-        VirtualEndpoint.getByName("127.0.0.9"), // this does not exist in the config file
+            VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0.1"), null, UUID.randomUUID()), // this exists in the config file
+            VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0.2"), null, UUID.randomUUID()), // this exists in the config file
+            VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0.9"), null, UUID.randomUUID()), // this doesn't exists in the config file
         };
 
         IPartitioner partitioner = new RandomPartitioner();
@@ -90,12 +92,18 @@ public class PropertyFileSnitchTest
         for (VirtualEndpoint host : hosts)
         {
             Set<Token> tokens = Collections.singleton(partitioner.getRandomToken());
-            Gossiper.instance.initializeNodeUnsafe(host, UUID.randomUUID(), 1);
+            Gossiper.instance.initializeNodeUnsafe(host, host.hostId , 1);
             Gossiper.instance.injectApplicationState(host, ApplicationState.TOKENS, valueFactory.tokens(tokens));
+            if (host.equalAddresses(FBUtilities.getBroadcastAddressAndPort()))
+                SystemKeyspace.setLocalHostId(host.hostId);
+            else
+                SystemKeyspace.updatePeerInfo(host, "host_id", host.hostId);
 
             setNodeShutdown(host);
             tokenMap.put(host, tokens);
         }
+
+        DatabaseDescriptor.setLocalDataRetrievable(true);
     }
 
     private void restoreOrigConfigFile() throws IOException

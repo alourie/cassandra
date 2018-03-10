@@ -191,12 +191,14 @@ public class LeaveAndBootstrapTest
         ss.onChange(boot1,
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(5))));
+        SystemKeyspace.updatePeerInfo(boot1, "host_id", boot1.hostId);
         VirtualEndpoint boot2 = VirtualEndpoint.getByName("127.0.1.2");
         Gossiper.instance.initializeNodeUnsafe(boot2, UUID.randomUUID(), 1);
         Gossiper.instance.injectApplicationState(boot2, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(7))));
         ss.onChange(boot2,
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(7))));
+        SystemKeyspace.updatePeerInfo(boot2, "host_id", boot2.hostId);
 
         Collection<VirtualEndpoint> endpoints = null;
 

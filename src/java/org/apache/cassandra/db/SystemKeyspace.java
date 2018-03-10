@@ -680,8 +680,8 @@ public final class SystemKeyspace
 
         String req = "INSERT INTO system.%s (peer, tokens) VALUES (?, ?)";
         executeInternal(String.format(req, LEGACY_PEERS), ep.address, tokensAsSet(tokens));
-        req = "INSERT INTO system.%s (peer, peer_port, tokens) VALUES (?, ?, ?)";
-        executeInternal(String.format(req, PEERS_V2), ep.address, ep.port, tokensAsSet(tokens));
+        req = "INSERT INTO system.%s (peer, peer_port, host_id, tokens) VALUES (?, ?, ?, ?)";
+        executeInternal(String.format(req, PEERS_V2), ep.address, ep.port, ep.hostId, tokensAsSet(tokens));
     }
 
     public static synchronized void updatePreferredIP(VirtualEndpoint ep, VirtualEndpoint preferred_ip)
@@ -812,7 +812,9 @@ public final class SystemKeyspace
         {
             InetAddress address = row.getInetAddress("peer");
             Integer port = row.getInt("peer_port");
-            UUID hostId = row.getUUID("host_id");
+            UUID hostId = VirtualEndpoint.initialHostId;
+            if (row.has("host_id"))
+                hostId = row.getUUID("host_id");
             VirtualEndpoint peer = VirtualEndpoint.getByAddressOverrideDefaults(address, port, hostId);
             if (row.has("tokens"))
                 tokenMap.putAll(peer, deserializeTokens(row.getSet("tokens", UTF8Type.instance)));
@@ -855,7 +857,10 @@ public final class SystemKeyspace
         if (!result.isEmpty() && result.one().has("preferred_ip"))
         {
             UntypedResultSet.Row row = result.one();
-            return VirtualEndpoint.getByAddressOverrideDefaults(row.getInetAddress("preferred_ip"), row.getInt("preferred_port"), row.getUUID("host_id"));
+            UUID hostId = VirtualEndpoint.initialHostId;
+            if (row.has("host_id"))
+                hostId = row.getUUID("host_id");
+            return VirtualEndpoint.getByAddressOverrideDefaults(row.getInetAddress("preferred_ip"), row.getInt("preferred_port"), hostId);
         }
         return ep;
     }

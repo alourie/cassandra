@@ -2397,7 +2397,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         Optional<VirtualEndpoint> replacingNode = tokenMetadata.getReplacingNode(endpoint);
         if (replacingNode.isPresent())
         {
-            assert !endpoint.equals(replacingNode.get()) : "Pending replacement endpoint with same address is not supported";
+            assert !endpoint.equalAddresses(replacingNode.get()) : "Pending replacement endpoint with same address is not supported";
             logger.info("Node {} will complete replacement of {} for tokens {}", endpoint, replacingNode.get(), tokens);
             if (FailureDetector.instance.isAlive(replacingNode.get()))
             {

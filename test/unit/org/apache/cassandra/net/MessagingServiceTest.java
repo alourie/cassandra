@@ -91,6 +91,8 @@ public class MessagingServiceTest
         DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setBackPressureStrategy(new MockBackPressureStrategy(Collections.emptyMap()));
         DatabaseDescriptor.setBroadcastAddress(InetAddress.getByName("127.0.0.1"));
+        SystemKeyspace.persistLocalMetadata();
+        DatabaseDescriptor.setLocalDataRetrievable(true);
         originalAuthenticator = DatabaseDescriptor.getInternodeAuthenticator();
         originalServerEncryptionOptions = DatabaseDescriptor.getServerEncryptionOptions();
         originalListenAddress = VirtualEndpoint.getByAddressOverrideDefaults(DatabaseDescriptor.getListenAddress(), DatabaseDescriptor.getStoragePort());
@@ -461,6 +463,7 @@ public class MessagingServiceTest
 
         // reset the preferred IP value, for good test hygene
         SystemKeyspace.updatePreferredIP(publicIp, publicIp);
+        SystemKeyspace.updatePeerInfo(publicIp, "host_id", publicIp.hostId);
 
         // create pool/conn with public addr
         Assert.assertEquals(publicIp, messagingService.getCurrentEndpoint(publicIp));
