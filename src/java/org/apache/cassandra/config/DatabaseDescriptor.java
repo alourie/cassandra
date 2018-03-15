@@ -301,7 +301,7 @@ public class DatabaseDescriptor
         }
     }
 
-    public static void setLocalDataRetrievable(final boolean can) { canReadLocalData = can; }
+    public static void setLocalDataRetrievable(final boolean canReadData) { canReadLocalData = canReadData; }
 
     public static boolean isLocalDataRetreiveable() { return canReadLocalData; }
 

@@ -442,6 +442,7 @@ public class VerifyTest
         catch (CorruptSSTableException err)
         {}
         assertFalse(sstable.isRepaired());
+        StorageService.instance.getTokenMetadata().clearUnsafe();
     }
 
     @Test(expected = RuntimeException.class)
