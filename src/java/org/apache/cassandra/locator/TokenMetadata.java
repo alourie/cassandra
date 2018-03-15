@@ -261,8 +261,9 @@ public class TokenMetadata
                 // Check if another node with the same IP/Port combo is already running
                 for (VirtualEndpoint ep : storedEndpointsWithAddress)
                     if (FailureDetector.instance.isAlive(ep))
-                        throw new RuntimeException(String.format("Host ID collision between active endpoint %s and %s (id=%s)",
+                        throw new RuntimeException(String.format("Host ID collision between active endpoint %s (id=%s) and %s (id=%s)",
                                                                  ep,
+                                                                 ep.hostId,
                                                                  endpoint,
                                                                  hostId));
 

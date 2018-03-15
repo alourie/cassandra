@@ -19,8 +19,10 @@
 
 package org.apache.cassandra.service;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -66,6 +68,7 @@ public class LeaveAndBootstrapTest
         partitionerSwitcher = Util.switchPartitioner(partitioner);
         SchemaLoader.loadSchema();
         SchemaLoader.schemaDefinition("LeaveAndBootstrapTest");
+        DatabaseDescriptor.setLocalDataRetrievable(true);
     }
 
     @AfterClass
@@ -192,6 +195,7 @@ public class LeaveAndBootstrapTest
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(5))));
         SystemKeyspace.updatePeerInfo(boot1, "host_id", boot1.hostId);
+        hosts.add(boot1);
         VirtualEndpoint boot2 = VirtualEndpoint.getByName("127.0.1.2");
         Gossiper.instance.initializeNodeUnsafe(boot2, UUID.randomUUID(), 1);
         Gossiper.instance.injectApplicationState(boot2, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(7))));
@@ -199,6 +203,7 @@ public class LeaveAndBootstrapTest
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(7))));
         SystemKeyspace.updatePeerInfo(boot2, "host_id", boot2.hostId);
+        hosts.add(boot2);
 
         Collection<VirtualEndpoint> endpoints = null;
 
@@ -358,25 +363,26 @@ public class LeaveAndBootstrapTest
                 valueFactory.left(Collections.singleton(endpointTokens.get(LEAVING[2])), Gossiper.computeExpireTime()));
         ss.onChange(boot1, ApplicationState.STATUS, valueFactory.normal(Collections.singleton(keyTokens.get(5))));
 
-        // adjust precalcuated results.  this changes what the epected endpoints are.
-        expectedEndpoints.get(KEYSPACE1).get(new BigIntegerToken("55")).removeAll(makeAddrs("127.0.0.7", "127.0.0.8"));
-        expectedEndpoints.get(KEYSPACE1).get(new BigIntegerToken("85")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE2).get(new BigIntegerToken("55")).removeAll(makeAddrs("127.0.0.7", "127.0.0.8"));
-        expectedEndpoints.get(KEYSPACE2).get(new BigIntegerToken("85")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("15")).removeAll(makeAddrs("127.0.0.7", "127.0.0.8"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("25")).removeAll(makeAddrs("127.0.0.7", "127.0.1.2", "127.0.0.1"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("35")).removeAll(makeAddrs("127.0.0.7", "127.0.0.2"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("45")).removeAll(makeAddrs("127.0.0.7", "127.0.0.10", "127.0.0.3"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("55")).removeAll(makeAddrs("127.0.0.7", "127.0.0.10", "127.0.0.4"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("65")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("75")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("85")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("35")).removeAll(makeAddrs("127.0.0.7", "127.0.0.8"));
-        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("45")).removeAll(makeAddrs("127.0.0.7", "127.0.1.2", "127.0.0.1"));
-        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("55")).removeAll(makeAddrs("127.0.0.2", "127.0.0.7"));
-        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("65")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("75")).removeAll(makeAddrs("127.0.0.10"));
-        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("85")).removeAll(makeAddrs("127.0.0.10"));
+        // adjust precalcuated results.  this changes what the expected endpoints are.
+        // as we have removed the nodes from the system keyspace, use the entries from hosts for the adjustment.
+        expectedEndpoints.get(KEYSPACE1).get(new BigIntegerToken("55")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.8"));
+        expectedEndpoints.get(KEYSPACE1).get(new BigIntegerToken("85")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE2).get(new BigIntegerToken("55")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.8"));
+        expectedEndpoints.get(KEYSPACE2).get(new BigIntegerToken("85")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("15")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.8"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("25")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.1.2", "127.0.0.1"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("35")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.2"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("45")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.10", "127.0.0.3"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("55")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.10", "127.0.0.4"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("65")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("75")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE3).get(new BigIntegerToken("85")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("35")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.0.8"));
+        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("45")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.7", "127.0.1.2", "127.0.0.1"));
+        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("55")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.2", "127.0.0.7"));
+        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("65")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("75")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
+        expectedEndpoints.get(KEYSPACE4).get(new BigIntegerToken("85")).removeAll(getEndpointsFromHosts(hosts, "127.0.0.10"));
 
         PendingRangeCalculatorService.instance.blockUntilFinished();
 
@@ -722,6 +728,15 @@ public class LeaveAndBootstrapTest
         for (String host : hosts)
             addrs.add(VirtualEndpoint.getByName(host));
         return addrs;
+    }
+
+    private List<VirtualEndpoint> getEndpointsFromHosts(List<VirtualEndpoint> hosts, String... addresses) throws UnknownHostException
+    {
+        ArrayList<InetAddress> addrs = new ArrayList<>(addresses.length);
+        for (String address : addresses)
+            addrs.add(InetAddress.getByName(address));
+
+        return hosts.stream().filter(e->addrs.contains(e.address)).collect(Collectors.toList());
     }
 
     private AbstractReplicationStrategy getStrategy(String keyspaceName, TokenMetadata tmd)

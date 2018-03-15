@@ -221,6 +221,14 @@ public class Util
                         ApplicationState.STATUS,
                         new VersionedValue.VersionedValueFactory(partitioner).normal(Collections.singleton(endpointTokens.get(i))));
             hosts.add(ep);
+            if (ep.equalAddresses(FBUtilities.getJustBroadcastAddress()))
+            {
+                SystemKeyspace.setLocalHostId(ep.hostId);
+            }
+            else
+            {
+                SystemKeyspace.updatePeerInfo(ep, "host_id", ep.hostId);
+            }
             ss.getTokenMetadata().addIfMissing(ep);
         }
 

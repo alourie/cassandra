@@ -150,7 +150,7 @@ public class FBUtilities
      */
     public static VirtualEndpoint getBroadcastAddressAndPort()
     {
-        if (virtualEndpoint == null)
+        if (virtualEndpoint == null || virtualEndpoint.hostId == VirtualEndpoint.initialHostId)
         {
             virtualEndpoint = VirtualEndpoint.getByAddress(getJustBroadcastAddress());
         }

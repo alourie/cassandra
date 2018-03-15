@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 
 import com.google.common.collect.Lists;
 
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.*;
 
@@ -97,8 +98,17 @@ public class BatchlogManagerTest
         VirtualEndpoint localhost = VirtualEndpoint.getByName("127.0.0.1");
         metadata.updateNormalToken(Util.token("A"), localhost);
         metadata.updateHostId(UUIDGen.getTimeUUID(), localhost);
+        SystemKeyspace.setLocalHostId(localhost.hostId);
         Keyspace.open(SchemaConstants.SYSTEM_KEYSPACE_NAME).getColumnFamilyStore(SystemKeyspace.BATCHES).truncateBlocking();
         DatabaseDescriptor.setLocalDataRetrievable(true);
+        Gossiper.instance.initializeNodeUnsafe(localhost, localhost.hostId, 1);
+    }
+
+    @After
+    public void tearDown() throws Exception
+    {
+        TokenMetadata metadata = StorageService.instance.getTokenMetadata();
+        metadata.clearUnsafe();
     }
 
     @Test

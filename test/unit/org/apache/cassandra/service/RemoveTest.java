@@ -91,6 +91,8 @@ public class RemoveTest
         hosts.remove(removalhost);
         removalId = hostIds.get(5);
         hostIds.remove(removalId);
+
+        DatabaseDescriptor.setLocalDataRetrievable(true);
     }
 
     @After
@@ -98,6 +100,7 @@ public class RemoveTest
     {
         MessagingService.instance().clearMessageSinks();
         MessagingService.instance().clearCallbacksUnsafe();
+        DatabaseDescriptor.setLocalDataRetrievable(false);
     }
 
     @Test(expected = UnsupportedOperationException.class)
