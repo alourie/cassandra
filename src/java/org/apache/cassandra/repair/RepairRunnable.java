@@ -34,6 +34,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.*;
 import org.apache.cassandra.locator.VirtualEndpoint;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -229,7 +230,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
             traceState = null;
         }
 
-        final Set<VirtualEndpoint> allNeighbors = new HashSet<>();
+        Set<VirtualEndpoint> allNeighbors = new HashSet<>();
         List<CommonRange> commonRanges = new ArrayList<>();
 
         //pre-calculate output of getLocalRanges and pass it to getNeighbors to increase performance and prevent
@@ -281,9 +282,18 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
             SystemDistributedKeyspace.startParentRepair(parentSession, keyspace, cfnames, options);
         }
 
+        boolean force = options.isForcedRepair();
+
+        if (force && options.isIncremental())
+        {
+            Set<VirtualEndpoint> actualNeighbors = Sets.newHashSet(Iterables.filter(allNeighbors, FailureDetector.instance::isAlive));
+            force = !allNeighbors.equals(actualNeighbors);
+            allNeighbors = actualNeighbors;
+        }
+
         try (Timer.Context ctx = Keyspace.open(keyspace).metric.repairPrepareTime.time())
         {
-            ActiveRepairService.instance.prepareForRepair(parentSession, FBUtilities.getBroadcastAddressAndPort(), allNeighbors, options, columnFamilyStores);
+            ActiveRepairService.instance.prepareForRepair(parentSession, FBUtilities.getBroadcastAddressAndPort(), allNeighbors, options, force, columnFamilyStores);
             progress.incrementAndGet();
         }
         catch (Throwable t)
@@ -302,7 +312,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         }
         else if (options.isIncremental())
         {
-            incrementalRepair(parentSession, startTime, options.isForcedRepair(), traceState, allNeighbors, commonRanges, cfnames);
+            incrementalRepair(parentSession, startTime, force, traceState, allNeighbors, commonRanges, cfnames);
         }
         else
         {
@@ -393,15 +403,14 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                                    String... cfnames)
     {
         // the local node also needs to be included in the set of participants, since coordinator sessions aren't persisted
-        Predicate<VirtualEndpoint> isAlive = FailureDetector.instance::isAlive;
         Set<VirtualEndpoint> allParticipants = ImmutableSet.<VirtualEndpoint>builder()
-                                           .addAll(forceRepair ? Iterables.filter(allNeighbors, isAlive) : allNeighbors)
+                                           .addAll(allNeighbors)
                                            .add(FBUtilities.getBroadcastAddressAndPort())
                                            .build();
 
         List<CommonRange> allRanges = filterCommonRanges(commonRanges, allParticipants, forceRepair);
 
-        CoordinatorSession coordinatorSession = ActiveRepairService.instance.consistent.coordinated.registerSession(parentSession, allParticipants);
+        CoordinatorSession coordinatorSession = ActiveRepairService.instance.consistent.coordinated.registerSession(parentSession, allParticipants, forceRepair);
         ListeningExecutorService executor = createExecutor();
         AtomicBoolean hasFailure = new AtomicBoolean(false);
         ListenableFuture repairResult = coordinatorSession.execute(() -> submitRepairSessions(parentSession, true, executor, allRanges, cfnames),
