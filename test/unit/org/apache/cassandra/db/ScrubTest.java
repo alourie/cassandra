@@ -108,6 +108,8 @@ public class ScrubTest
                        SchemaLoader.compositeIndexCFMD(KEYSPACE, CF_INDEX2, true),
                        SchemaLoader.keysIndexCFMD(KEYSPACE, CF_INDEX1_BYTEORDERED, true).partitioner(ByteOrderedPartitioner.instance),
                        SchemaLoader.compositeIndexCFMD(KEYSPACE, CF_INDEX2_BYTEORDERED, true).partitioner(ByteOrderedPartitioner.instance));
+
+        DatabaseDescriptor.setLocalDataRetrievable(false);
     }
 
     @Test

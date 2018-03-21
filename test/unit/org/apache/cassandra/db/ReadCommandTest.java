@@ -124,6 +124,9 @@ public class ReadCommandTest
                                     metadata3,
                                     metadata4,
                                     metadata5);
+
+        DatabaseDescriptor.setLocalDataRetrievable(false);
+
     }
 
     @Test

@@ -75,7 +75,6 @@ public class StorageServiceServerTest
     {
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
-        DatabaseDescriptor.setLocalDataRetrievable(true);
         StorageService.instance.initServer(0);
         for (String path : DatabaseDescriptor.getAllDataFileLocations())
         {

@@ -598,6 +598,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Native protocol supported versions: {} (default: {})",
                     StringUtils.join(ProtocolVersion.supportedVersions(), ", "), ProtocolVersion.CURRENT);
 
+
         try
         {
             // Ensure StorageProxy is initialized on start-up; see CASSANDRA-3797.
@@ -641,6 +642,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
 
         prepareToJoin();
+
+        // Mark ready to read SystemKeyspace; needed for testing
+        DatabaseDescriptor.setLocalDataRetrievable(true);
 
         // Has to be called after the host id has potentially changed in prepareToJoin().
         try
