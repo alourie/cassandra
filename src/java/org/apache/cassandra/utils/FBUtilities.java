@@ -123,7 +123,7 @@ public class FBUtilities
      */
     public static VirtualEndpoint getLocalAddressAndPort()
     {
-        if (localVirtualEndpoint == null)
+        if (localVirtualEndpoint == null || localVirtualEndpoint.hostId == VirtualEndpoint.initialHostId)
         {
             localVirtualEndpoint = VirtualEndpoint.getByAddress(getJustLocalAddress());
         }

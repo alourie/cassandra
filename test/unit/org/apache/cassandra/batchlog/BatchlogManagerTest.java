@@ -18,6 +18,7 @@
 package org.apache.cassandra.batchlog;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -69,6 +70,8 @@ public class BatchlogManagerTest
 
     static PartitionerSwitcher sw;
 
+    private static final UUID hostId = UUID.randomUUID();
+
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
     {
@@ -95,12 +98,11 @@ public class BatchlogManagerTest
     public void setUp() throws Exception
     {
         TokenMetadata metadata = StorageService.instance.getTokenMetadata();
-        VirtualEndpoint localhost = VirtualEndpoint.getByName("127.0.0.1");
+        VirtualEndpoint localhost = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0.1"), null, hostId);
         metadata.updateNormalToken(Util.token("A"), localhost);
-        metadata.updateHostId(UUIDGen.getTimeUUID(), localhost);
+        metadata.addIfMissing(localhost);
         SystemKeyspace.setLocalHostId(localhost.hostId);
         Keyspace.open(SchemaConstants.SYSTEM_KEYSPACE_NAME).getColumnFamilyStore(SystemKeyspace.BATCHES).truncateBlocking();
-        DatabaseDescriptor.setLocalDataRetrievable(true);
         Gossiper.instance.initializeNodeUnsafe(localhost, localhost.hostId, 1);
     }
 

@@ -70,7 +70,7 @@ public class StreamingTransferTest
         DatabaseDescriptor.daemonInitialization();
     }
 
-    public static final VirtualEndpoint LOCAL = FBUtilities.getBroadcastAddressAndPort();
+    public static VirtualEndpoint localHost;
     public static final String KEYSPACE1 = "StreamingTransferTest1";
     public static final String CF_STANDARD = "Standard1";
     public static final String CF_COUNTER = "Counter1";
@@ -106,6 +106,8 @@ public class StreamingTransferTest
                        standardCFMD(KEYSPACE_CACHEKEY, CF_STANDARD),
                        standardCFMD(KEYSPACE_CACHEKEY, CF_STANDARD2),
                        standardCFMD(KEYSPACE_CACHEKEY, CF_STANDARD3));
+
+        localHost = FBUtilities.getBroadcastAddressAndPort();
     }
 
     /**
@@ -144,7 +146,7 @@ public class StreamingTransferTest
         ranges.add(new Range<>(p.getToken(ByteBufferUtil.bytes("key2")), p.getMinimumToken()));
 
         StreamResultFuture futureResult = new StreamPlan(StreamOperation.OTHER)
-                                                  .requestRanges(LOCAL, LOCAL, KEYSPACE2, ranges)
+                                                  .requestRanges(localHost, localHost, KEYSPACE2, ranges)
                                                   .execute();
 
         UUID planId = futureResult.planId;
@@ -155,7 +157,7 @@ public class StreamingTransferTest
         // we should have completed session with empty transfer
         assert result.sessions.size() == 1;
         SessionInfo session = Iterables.get(result.sessions, 0);
-        assert session.peer.equals(LOCAL);
+        assert session.peer.equals(localHost);
         assert session.getTotalFilesReceived() == 0;
         assert session.getTotalFilesSent() == 0;
         assert session.getTotalSizeReceived() == 0;
@@ -238,13 +240,13 @@ public class StreamingTransferTest
         List<Range<Token>> ranges = new ArrayList<>();
         // wrapped range
         ranges.add(new Range<Token>(p.getToken(ByteBufferUtil.bytes("key1")), p.getToken(ByteBufferUtil.bytes("key0"))));
-        StreamPlan streamPlan = new StreamPlan(StreamOperation.OTHER).transferRanges(LOCAL, cfs.keyspace.getName(), ranges, cfs.getTableName());
+        StreamPlan streamPlan = new StreamPlan(StreamOperation.OTHER).transferRanges(localHost, cfs.keyspace.getName(), ranges, cfs.getTableName());
         streamPlan.execute().get();
 
         //cannot add ranges after stream session is finished
         try
         {
-            streamPlan.transferRanges(LOCAL, cfs.keyspace.getName(), ranges, cfs.getTableName());
+            streamPlan.transferRanges(localHost, cfs.keyspace.getName(), ranges, cfs.getTableName());
             fail("Should have thrown exception");
         }
         catch (RuntimeException e)
@@ -255,13 +257,13 @@ public class StreamingTransferTest
 
     private void transfer(SSTableReader sstable, List<Range<Token>> ranges) throws Exception
     {
-        StreamPlan streamPlan = new StreamPlan(StreamOperation.OTHER).transferStreams(LOCAL, makeOutgoingStreams(ranges, Refs.tryRef(Arrays.asList(sstable))));
+        StreamPlan streamPlan = new StreamPlan(StreamOperation.OTHER).transferStreams(localHost, makeOutgoingStreams(ranges, Refs.tryRef(Arrays.asList(sstable))));
         streamPlan.execute().get();
 
         //cannot add files after stream session is finished
         try
         {
-            streamPlan.transferStreams(LOCAL, makeOutgoingStreams(ranges, Refs.tryRef(Arrays.asList(sstable))));
+            streamPlan.transferStreams(localHost, makeOutgoingStreams(ranges, Refs.tryRef(Arrays.asList(sstable))));
             fail("Should have thrown exception");
         }
         catch (RuntimeException e)
@@ -465,7 +467,7 @@ public class StreamingTransferTest
         // Acquiring references, transferSSTables needs it
         Refs<SSTableReader> refs = Refs.tryRef(Arrays.asList(sstable, sstable2));
         assert refs != null;
-        new StreamPlan("StreamingTransferTest").transferStreams(LOCAL, makeOutgoingStreams(ranges, refs)).execute().get();
+        new StreamPlan("StreamingTransferTest").transferStreams(localHost, makeOutgoingStreams(ranges, refs)).execute().get();
 
         // confirm that the sstables were transferred and registered and that 2 keys arrived
         ColumnFamilyStore cfstore = Keyspace.open(keyspaceName).getColumnFamilyStore(cfname);
@@ -520,7 +522,7 @@ public class StreamingTransferTest
         if (refs == null)
             throw new AssertionError();
 
-        new StreamPlan("StreamingTransferTest").transferStreams(LOCAL, makeOutgoingStreams(ranges, refs)).execute().get();
+        new StreamPlan("StreamingTransferTest").transferStreams(localHost, makeOutgoingStreams(ranges, refs)).execute().get();
 
         // check that only two keys were transferred
         for (Map.Entry<DecoratedKey,String> entry : Arrays.asList(first, last))
