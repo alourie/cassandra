@@ -103,7 +103,7 @@ public class BatchlogManagerTest
         metadata.addIfMissing(localhost);
         SystemKeyspace.setLocalHostId(localhost.hostId);
         Keyspace.open(SchemaConstants.SYSTEM_KEYSPACE_NAME).getColumnFamilyStore(SystemKeyspace.BATCHES).truncateBlocking();
-        Gossiper.instance.initializeNodeUnsafe(localhost, localhost.hostId, 1);
+        Gossiper.instance.initializeNodeUnsafe(localhost, 1);
     }
 
     @After

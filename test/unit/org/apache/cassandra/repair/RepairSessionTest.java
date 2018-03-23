@@ -19,6 +19,7 @@
 package org.apache.cassandra.repair;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
@@ -53,8 +54,8 @@ public class RepairSessionTest
     @Test
     public void testConviction() throws Exception
     {
-        VirtualEndpoint remote = VirtualEndpoint.getByName("127.0.0.2");
-        Gossiper.instance.initializeNodeUnsafe(remote, UUID.randomUUID(), 1);
+        VirtualEndpoint remote = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0.2"), null, UUID.randomUUID());
+        Gossiper.instance.initializeNodeUnsafe(remote, 1);
 
         // Set up RepairSession
         UUID parentSessionId = UUIDGen.getTimeUUID();

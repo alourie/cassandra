@@ -68,7 +68,7 @@ public class LeaveAndBootstrapTest
         partitionerSwitcher = Util.switchPartitioner(partitioner);
         SchemaLoader.loadSchema();
         SchemaLoader.schemaDefinition("LeaveAndBootstrapTest");
-        DatabaseDescriptor.setLocalDataRetrievable(true);
+        SystemKeyspace.setReadable(true);
     }
 
     @AfterClass
@@ -188,16 +188,16 @@ public class LeaveAndBootstrapTest
         }
 
         // boot two new nodes with keyTokens.get(5) and keyTokens.get(7)
-        VirtualEndpoint boot1 = VirtualEndpoint.getByName("127.0.1.1");
-        Gossiper.instance.initializeNodeUnsafe(boot1, UUID.randomUUID(), 1);
+        VirtualEndpoint boot1 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.1.1"), null, UUID.randomUUID());
+        Gossiper.instance.initializeNodeUnsafe(boot1, 1);
         Gossiper.instance.injectApplicationState(boot1, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(5))));
         ss.onChange(boot1,
                     ApplicationState.STATUS,
                     valueFactory.bootstrapping(Collections.<Token>singleton(keyTokens.get(5))));
         SystemKeyspace.updatePeerInfo(boot1, "host_id", boot1.hostId);
         hosts.add(boot1);
-        VirtualEndpoint boot2 = VirtualEndpoint.getByName("127.0.1.2");
-        Gossiper.instance.initializeNodeUnsafe(boot2, UUID.randomUUID(), 1);
+        VirtualEndpoint boot2 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.1.2"), null, UUID.randomUUID());
+        Gossiper.instance.initializeNodeUnsafe(boot2, 1);
         Gossiper.instance.injectApplicationState(boot2, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(7))));
         ss.onChange(boot2,
                     ApplicationState.STATUS,

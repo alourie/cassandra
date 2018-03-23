@@ -212,7 +212,7 @@ public abstract class CQLTester
 
         Keyspace.setInitialized();
         SystemKeyspace.persistLocalMetadata();
-        DatabaseDescriptor.setLocalDataRetrievable(true);
+        SystemKeyspace.setReadable(true);
         isServerPrepared = true;
     }
 

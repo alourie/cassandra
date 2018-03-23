@@ -212,7 +212,7 @@ public class Util
         for (int i=0; i<endpointTokens.size(); i++)
         {
             VirtualEndpoint ep = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.0." + (i + 1)), null, hostIds.get(i));
-            Gossiper.instance.initializeNodeUnsafe(ep, ep.hostId,1);
+            Gossiper.instance.initializeNodeUnsafe(ep, 1);
             Gossiper.instance.injectApplicationState(ep, ApplicationState.TOKENS, new VersionedValue.VersionedValueFactory(partitioner).tokens(Collections.singleton(endpointTokens.get(i))));
             ss.onChange(ep,
                         ApplicationState.STATUS_WITH_PORT,

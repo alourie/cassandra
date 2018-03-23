@@ -21,25 +21,17 @@ package org.apache.cassandra.locator;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import javax.xml.crypto.Data;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.SetMultimap;
 import com.google.common.net.HostAndPort;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.SystemKeyspace;
-import org.apache.cassandra.db.rows.EncodingStats;
-import org.apache.cassandra.gms.Gossiper;
-import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.FastByteOperations;
 
@@ -78,12 +70,18 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
     {
         Preconditions.checkNotNull(address);
         Preconditions.checkNotNull(addressBytes);
-        Preconditions.checkNotNull(hostId);
         validatePortRange(port);
         this.address = address;
         this.port = port;
         this.addressBytes = addressBytes;
-        this.hostId = hostId;
+        if (hostId == null)
+        {
+            this.hostId = initialHostId;
+        }
+        else
+        {
+            this.hostId = hostId;
+        }
     }
 
     private static void validatePortRange(int port)
@@ -214,7 +212,7 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
 
         UUID hostId = null;
         VirtualEndpoint testEndpoint = getByAddressOverrideDefaults(address, port, null);
-        if (DatabaseDescriptor.isLocalDataRetreiveable())
+        if (SystemKeyspace.isReadable())
         {
             // Check if it's local, and if it is, fetch an id
             if (hostId == null && address.equals(FBUtilities.getJustBroadcastAddress()))
@@ -240,9 +238,6 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
     {
         if (port == null)
             port = defaultPort;
-
-        if (hostId == null)
-            hostId = initialHostId;
 
         return new VirtualEndpoint(address, address.getAddress(), port, hostId);
     }

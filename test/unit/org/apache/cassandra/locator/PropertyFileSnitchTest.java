@@ -92,7 +92,7 @@ public class PropertyFileSnitchTest
         for (VirtualEndpoint host : hosts)
         {
             Set<Token> tokens = Collections.singleton(partitioner.getRandomToken());
-            Gossiper.instance.initializeNodeUnsafe(host, host.hostId , 1);
+            Gossiper.instance.initializeNodeUnsafe(host, 1);
             Gossiper.instance.injectApplicationState(host, ApplicationState.TOKENS, valueFactory.tokens(tokens));
             if (host.equalAddresses(FBUtilities.getBroadcastAddressAndPort()))
                 SystemKeyspace.setLocalHostId(host.hostId);
@@ -103,7 +103,7 @@ public class PropertyFileSnitchTest
             tokenMap.put(host, tokens);
         }
 
-        DatabaseDescriptor.setLocalDataRetrievable(true);
+        SystemKeyspace.setReadable(true);
     }
 
     private void restoreOrigConfigFile() throws IOException

@@ -653,7 +653,7 @@ public class MoveTest
 
         // boot two new nodes with keyTokens.get(5) and keyTokens.get(7)
         VirtualEndpoint boot1 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.1.1"), null, UUID.randomUUID());
-        Gossiper.instance.initializeNodeUnsafe(boot1, boot1.hostId, 1);
+        Gossiper.instance.initializeNodeUnsafe(boot1, 1);
         Gossiper.instance.injectApplicationState(boot1, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(5))));
         ss.onChange(boot1,
                     ApplicationState.STATUS,
@@ -664,7 +664,7 @@ public class MoveTest
         SystemKeyspace.updatePeerInfo(boot1, "host_id", boot1.hostId);
 
         VirtualEndpoint boot2 = VirtualEndpoint.getByAddressOverrideDefaults(InetAddress.getByName("127.0.1.2"), null, UUID.randomUUID());
-        Gossiper.instance.initializeNodeUnsafe(boot2, boot2.hostId, 1);
+        Gossiper.instance.initializeNodeUnsafe(boot2, 1);
         Gossiper.instance.injectApplicationState(boot2, ApplicationState.TOKENS, valueFactory.tokens(Collections.singleton(keyTokens.get(7))));
         ss.onChange(boot2,
                     ApplicationState.STATUS,

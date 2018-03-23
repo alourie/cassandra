@@ -92,7 +92,7 @@ public class MessagingServiceTest
         DatabaseDescriptor.setBackPressureStrategy(new MockBackPressureStrategy(Collections.emptyMap()));
         DatabaseDescriptor.setBroadcastAddress(InetAddress.getByName("127.0.0.1"));
         SystemKeyspace.persistLocalMetadata();
-        DatabaseDescriptor.setLocalDataRetrievable(true);
+        SystemKeyspace.setReadable(true);
         originalAuthenticator = DatabaseDescriptor.getInternodeAuthenticator();
         originalServerEncryptionOptions = DatabaseDescriptor.getServerEncryptionOptions();
         originalListenAddress = VirtualEndpoint.getByAddressOverrideDefaults(DatabaseDescriptor.getListenAddress(), DatabaseDescriptor.getStoragePort());

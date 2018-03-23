@@ -1677,11 +1677,9 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return inShadowRound;
     }
 
-    // TODO: Remove uuid and reuse endpoint
     @VisibleForTesting
-    public void initializeNodeUnsafe(VirtualEndpoint endpoint, UUID uuid, int generationNbr)
+    public void initializeNodeUnsafe(VirtualEndpoint endpoint, int generationNbr)
     {
-        endpoint.hostId = uuid;
         HeartBeatState hbState = new HeartBeatState(generationNbr);
         EndpointState newState = new EndpointState(hbState);
         newState.markAlive();
@@ -1691,7 +1689,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         // always add the version state
         Map<ApplicationState, VersionedValue> states = new EnumMap<>(ApplicationState.class);
         states.put(ApplicationState.NET_VERSION, StorageService.instance.valueFactory.networkVersion());
-        states.put(ApplicationState.HOST_ID, StorageService.instance.valueFactory.hostId(uuid));
+        states.put(ApplicationState.HOST_ID, StorageService.instance.valueFactory.hostId(endpoint.hostId));
         localState.addApplicationStates(states);
     }
 

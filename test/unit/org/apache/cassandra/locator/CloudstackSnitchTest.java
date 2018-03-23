@@ -50,7 +50,7 @@ public class CloudstackSnitchTest
         SchemaLoader.cleanup();
         Keyspace.setInitialized();
         SystemKeyspace.persistLocalMetadata();
-        DatabaseDescriptor.setLocalDataRetrievable(true);
+        SystemKeyspace.setReadable(true);
         StorageService.instance.initServer(0);
     }
 

@@ -27,6 +27,8 @@ import java.util.*;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -86,7 +88,7 @@ public class StorageServiceServerTest
         // stopping the client.
         //StorageService.instance.decommission();
         StorageService.instance.stopClient();
-        DatabaseDescriptor.setLocalDataRetrievable(false);
+        SystemKeyspace.setReadable(false);
     }
 
     @Test

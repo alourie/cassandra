@@ -74,6 +74,8 @@ import static org.apache.cassandra.cql3.QueryProcessor.executeOnceInternal;
 
 public final class SystemKeyspace
 {
+    private static boolean canRead;
+
     private SystemKeyspace()
     {
     }
@@ -106,6 +108,7 @@ public final class SystemKeyspace
     public static final String BUILT_VIEWS = "built_views";
     public static final String PREPARED_STATEMENTS = "prepared_statements";
     public static final String REPAIRS = "repairs";
+
 
     @Deprecated public static final String LEGACY_PEERS = "peers";
     @Deprecated public static final String LEGACY_PEER_EVENTS = "peer_events";
@@ -418,6 +421,10 @@ public final class SystemKeyspace
 
     private static volatile Map<TableId, Pair<CommitLogPosition, Long>> truncationRecords;
 
+    public static void setReadable(final boolean readable) { canRead = readable; }
+
+    public static boolean isReadable() { return canRead; }
+
     public enum BootstrapState
     {
         NEEDS_BOOTSTRAP,
@@ -429,6 +436,7 @@ public final class SystemKeyspace
     public static void finishStartup()
     {
         SchemaKeyspace.saveSystemKeyspacesSchema();
+        canRead = true;
     }
 
     public static void persistLocalMetadata()
@@ -845,7 +853,7 @@ public final class SystemKeyspace
     }
 
     /**
-     * Get preferred an endpoint with an IP of the given endpoint if it is known. Otherwise this returns given endpoint itself.
+     * Get a preferred IP (as an endpoint object) of the given endpoint IP if it is known. Otherwise this returns the given endpoint itself.
      *
      * @param ep endpoint to check
      * @return endpoint object with the preferred IP for given endpoint if present, otherwise returns given ep
@@ -1103,6 +1111,7 @@ public final class SystemKeyspace
             return setLocalHostId(hostId);
         }
 
+        // ID not found, and requested not to add. Return null.
         return null;
     }
 

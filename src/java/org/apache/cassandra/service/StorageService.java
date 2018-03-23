@@ -643,8 +643,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         prepareToJoin();
 
-        // Mark ready to read SystemKeyspace; needed for testing
-        DatabaseDescriptor.setLocalDataRetrievable(true);
+        // Mark SystemKeyspace ready to be read
+        SystemKeyspace.setReadable(true);
 
         // Has to be called after the host id has potentially changed in prepareToJoin().
         try
@@ -1005,7 +1005,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public static boolean isReplacingSameAddress()
     {
         VirtualEndpoint replaceAddress = DatabaseDescriptor.getReplaceAddress();
-        return replaceAddress != null && replaceAddress.equals(FBUtilities.getBroadcastAddressAndPort());
+        return replaceAddress != null && replaceAddress.equalAddresses(FBUtilities.getBroadcastAddressAndPort());
     }
 
     public void gossipSnitchInfo()
