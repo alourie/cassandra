@@ -87,14 +87,14 @@ public class OutboundMessagingConnectionTest
         omc.setChannelWriter(ChannelWriter.create(channel, omc::handleMessageResult, Optional.empty()));
 
         snitch = DatabaseDescriptor.getEndpointSnitch();
-        encryptionOptions = DatabaseDescriptor.getServerEncryptionOptions();
+        encryptionOptions = DatabaseDescriptor.getInternodeMessagingEncyptionOptions();
     }
 
     @After
     public void tearDown()
     {
         DatabaseDescriptor.setEndpointSnitch(snitch);
-        DatabaseDescriptor.setServerEncryptionOptions(encryptionOptions);
+        DatabaseDescriptor.setInternodeMessagingEncyptionOptions(encryptionOptions);
         channel.finishAndReleaseAll();
     }
 
@@ -505,7 +505,7 @@ public class OutboundMessagingConnectionTest
         ServerEncryptionOptions encryptionOptions = new ServerEncryptionOptions();
         encryptionOptions.enabled = true;
         encryptionOptions.internode_encryption = ServerEncryptionOptions.InternodeEncryption.all;
-        DatabaseDescriptor.setServerEncryptionOptions(encryptionOptions);
+        DatabaseDescriptor.setInternodeMessagingEncyptionOptions(encryptionOptions);
         omc = new OutboundMessagingConnection(connectionId, encryptionOptions, Optional.empty(), new AllowAllInternodeAuthenticator());
         int peerVersion = MessagingService.VERSION_30;
         MessagingService.instance().setVersion(connectionId.remote(), MessagingService.VERSION_30);

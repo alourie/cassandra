@@ -94,7 +94,7 @@ public class MessagingServiceTest
         SystemKeyspace.persistLocalMetadata();
         SystemKeyspace.setReadable(true);
         originalAuthenticator = DatabaseDescriptor.getInternodeAuthenticator();
-        originalServerEncryptionOptions = DatabaseDescriptor.getServerEncryptionOptions();
+        originalServerEncryptionOptions = DatabaseDescriptor.getInternodeMessagingEncyptionOptions();
         originalListenAddress = VirtualEndpoint.getByAddressOverrideDefaults(DatabaseDescriptor.getListenAddress(), DatabaseDescriptor.getStoragePort());
     }
 
@@ -113,7 +113,7 @@ public class MessagingServiceTest
     public void tearDown()
     {
         DatabaseDescriptor.setInternodeAuthenticator(originalAuthenticator);
-        DatabaseDescriptor.setServerEncryptionOptions(originalServerEncryptionOptions);
+        DatabaseDescriptor.setInternodeMessagingEncyptionOptions(originalServerEncryptionOptions);
         DatabaseDescriptor.setShouldListenOnBroadcastAddress(false);
         DatabaseDescriptor.setListenAddress(originalListenAddress.address);
         FBUtilities.reset();
