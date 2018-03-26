@@ -32,6 +32,7 @@ import com.google.common.net.HostAndPort;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.FastByteOperations;
 
 /**
@@ -212,16 +213,17 @@ public final class VirtualEndpoint implements Comparable<VirtualEndpoint>, Seria
         UUID hostId = null;
         if (DatabaseDescriptor.isClientInitialized() || DatabaseDescriptor.isSystemKeyspaceReadable())
         {
-            hostId = SystemKeyspace.getLocalHostId(false);
+            // check the peers first
+            VirtualEndpoint testEndpoint = getByAddressOverrideDefaults(address, port, null);
+            Optional<VirtualEndpoint> ep = SystemKeyspace.loadHostIds().keySet()
+                                                         .stream().filter(e -> e.equalAddresses(testEndpoint)).findFirst();
+            if (ep.isPresent())
+                hostId = ep.get().hostId;
 
-            // The provided host is not local, so we check the peers now
+            // if not found in peers, check local
             if (hostId == null)
             {
-                VirtualEndpoint testEndpoint = getByAddressOverrideDefaults(address, port, null);
-                Optional<VirtualEndpoint> ep = SystemKeyspace.loadHostIds().keySet()
-                                                             .stream().filter(e -> e.equalAddresses(testEndpoint)).findFirst();
-                if (ep.isPresent())
-                    hostId = ep.get().hostId;
+                hostId = SystemKeyspace.getLocalHostId(false);
             }
 
             // If it's not local, and not a peer, it means it's not initialised yet, use null
