@@ -91,6 +91,7 @@ public class MessagingServiceTest
         DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setBackPressureStrategy(new MockBackPressureStrategy(Collections.emptyMap()));
         DatabaseDescriptor.setBroadcastAddress(InetAddress.getByName("127.0.0.1"));
+        SystemKeyspace.persistLocalMetadata();
         DatabaseDescriptor.setSystemKeyspaceReadable(true);
         originalAuthenticator = DatabaseDescriptor.getInternodeAuthenticator();
         originalServerEncryptionOptions = DatabaseDescriptor.getInternodeMessagingEncyptionOptions();
