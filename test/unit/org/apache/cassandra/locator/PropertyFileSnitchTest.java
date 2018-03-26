@@ -103,7 +103,7 @@ public class PropertyFileSnitchTest
             tokenMap.put(host, tokens);
         }
 
-        SystemKeyspace.setReadable(true);
+        DatabaseDescriptor.setSystemKeyspaceReadable(true);
     }
 
     private void restoreOrigConfigFile() throws IOException

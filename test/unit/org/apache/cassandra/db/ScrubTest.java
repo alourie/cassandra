@@ -109,7 +109,7 @@ public class ScrubTest
                        SchemaLoader.keysIndexCFMD(KEYSPACE, CF_INDEX1_BYTEORDERED, true).partitioner(ByteOrderedPartitioner.instance),
                        SchemaLoader.compositeIndexCFMD(KEYSPACE, CF_INDEX2_BYTEORDERED, true).partitioner(ByteOrderedPartitioner.instance));
 
-        SystemKeyspace.setReadable(false);
+        DatabaseDescriptor.setSystemKeyspaceReadable(false);
     }
 
     @Test

@@ -644,7 +644,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         prepareToJoin();
 
         // Mark SystemKeyspace ready to be read
-        SystemKeyspace.setReadable(true);
+        DatabaseDescriptor.setSystemKeyspaceReadable(true);
 
         // Has to be called after the host id has potentially changed in prepareToJoin().
         try

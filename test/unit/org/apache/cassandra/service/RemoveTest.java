@@ -32,7 +32,6 @@ import org.junit.*;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Token;
@@ -93,7 +92,7 @@ public class RemoveTest
         removalId = hostIds.get(5);
         hostIds.remove(removalId);
 
-        SystemKeyspace.setReadable(true);
+        DatabaseDescriptor.setSystemKeyspaceReadable(true);
     }
 
     @After
@@ -101,7 +100,7 @@ public class RemoveTest
     {
         MessagingService.instance().clearMessageSinks();
         MessagingService.instance().clearCallbacksUnsafe();
-        SystemKeyspace.setReadable(false);
+        DatabaseDescriptor.setSystemKeyspaceReadable(false);
     }
 
     @Test(expected = UnsupportedOperationException.class)

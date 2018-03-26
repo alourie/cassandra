@@ -1167,7 +1167,7 @@ public class TokenMetadata
                 sb.append(System.getProperty("line.separator"));
                 for (VirtualEndpoint ep : eps)
                 {
-                    sb.append(ep);
+                    sb.append(ep.toStringWithHostId(true));
                     sb.append(':');
                     sb.append(endpointToTokenMap.get(ep));
                     sb.append(System.getProperty("line.separator"));

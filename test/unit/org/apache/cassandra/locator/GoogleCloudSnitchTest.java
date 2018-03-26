@@ -50,8 +50,6 @@ public class GoogleCloudSnitchTest
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         Keyspace.setInitialized();
-        SystemKeyspace.persistLocalMetadata();
-        SystemKeyspace.setReadable(true);
         StorageService.instance.initServer(0);
     }
 

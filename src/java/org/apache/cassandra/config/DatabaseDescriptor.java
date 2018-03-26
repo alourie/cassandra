@@ -124,6 +124,7 @@ public class DatabaseDescriptor
 
     private static final boolean disableSTCSInL0 = Boolean.getBoolean(Config.PROPERTY_PREFIX + "disable_stcs_in_l0");
     private static final boolean unsafeSystem = Boolean.getBoolean(Config.PROPERTY_PREFIX + "unsafesystem");
+    private static boolean canReadSystemKeyspace;
 
     public static void daemonInitialization() throws ConfigurationException
     {
@@ -2529,4 +2530,8 @@ public class DatabaseDescriptor
     {
         return conf.block_for_peers_timeout_in_secs;
     }
+
+    public static void setSystemKeyspaceReadable(final boolean readable) { canReadSystemKeyspace = readable; }
+
+    public static boolean isSystemKeyspaceReadable() { return canReadSystemKeyspace; }
 }

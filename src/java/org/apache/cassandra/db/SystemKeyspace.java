@@ -74,7 +74,6 @@ import static org.apache.cassandra.cql3.QueryProcessor.executeOnceInternal;
 
 public final class SystemKeyspace
 {
-    private static boolean canRead;
 
     private SystemKeyspace()
     {
@@ -421,10 +420,6 @@ public final class SystemKeyspace
 
     private static volatile Map<TableId, Pair<CommitLogPosition, Long>> truncationRecords;
 
-    public static void setReadable(final boolean readable) { canRead = readable; }
-
-    public static boolean isReadable() { return canRead; }
-
     public enum BootstrapState
     {
         NEEDS_BOOTSTRAP,
@@ -436,7 +431,6 @@ public final class SystemKeyspace
     public static void finishStartup()
     {
         SchemaKeyspace.saveSystemKeyspacesSchema();
-        canRead = true;
     }
 
     public static void persistLocalMetadata()

@@ -66,7 +66,7 @@ public class CQLSSTableWriterTest
         SchemaLoader.cleanupAndLeaveDirs();
         Keyspace.setInitialized();
         SystemKeyspace.persistLocalMetadata();
-        SystemKeyspace.setReadable(true);
+        DatabaseDescriptor.setSystemKeyspaceReadable(true);
         StorageService.instance.initServer();
     }
 

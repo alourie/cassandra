@@ -125,7 +125,7 @@ public class ReadCommandTest
                                     metadata4,
                                     metadata5);
 
-        SystemKeyspace.setReadable(false);
+        DatabaseDescriptor.setSystemKeyspaceReadable(false);
 
     }
 

@@ -237,6 +237,7 @@ public class CassandraDaemon
         });
 
         SystemKeyspaceMigrator40.migrate();
+        DatabaseDescriptor.setSystemKeyspaceReadable(true);
 
         // Populate token metadata before flushing, for token-aware sstable partitioning (#6696)
         StorageService.instance.populateTokenMetadata();

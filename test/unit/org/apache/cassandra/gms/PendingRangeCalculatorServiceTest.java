@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.locator.VirtualEndpoint;
 import org.junit.BeforeClass;
@@ -57,7 +58,7 @@ public class PendingRangeCalculatorServiceTest
     public static void setUp() throws ConfigurationException
     {
         SchemaLoader.prepareServer();
-        SystemKeyspace.setReadable(true);
+        DatabaseDescriptor.setSystemKeyspaceReadable(true);
         StorageService.instance.initServer();
     }
 
