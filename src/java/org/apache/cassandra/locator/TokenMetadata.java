@@ -54,7 +54,7 @@ public class TokenMetadata
      */
     private final BiMultiValMap<Token, Endpoint> tokenToEndpointMap;
 
-    /** Maintains endpoint to host ID map of every node in the cluster */
+    /** Maintains the list of all endpoints (representing every node in the cluster) */
     private final Set<Endpoint> allEndpoints;
 
     // Prior to CASSANDRA-603, we just had <tt>Map<Range, Endpoint> pendingRanges<tt>,

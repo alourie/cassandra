@@ -32,12 +32,12 @@ public interface IEndpointSnitch
     /**
      * returns a String representing the rack this endpoint belongs to
      */
-    public String getRack(InetAddressAndPort endpoint);
+    public String getRack(Endpoint endpoint);
 
     /**
      * returns a String representing the datacenter this endpoint belongs to
      */
-    public String getDatacenter(InetAddressAndPort endpoint);
+    public String getDatacenter(Endpoint endpoint);
 
     /**
      * returns a new <tt>List</tt> sorted by proximity to the given endpoint
