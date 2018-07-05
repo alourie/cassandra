@@ -302,7 +302,11 @@ public class TokenMetadata
 
             // Find a first Endpoint that has the provided address in any of it's address fields.
             // The allEndpoints set doesn't include more than 1 such endpoint as per the check above
-            return allEndpoints.stream().filter(e -> e.hasAddress(address)).findFirst().orElse(null);
+            return allEndpoints.stream()
+                               .filter(e -> e.hasAddress(address))
+                               .filter(FailureDetector.instance::isAlive)
+                               .findFirst()
+                               .orElse(null);
         }
         finally
         {
@@ -314,7 +318,7 @@ public class TokenMetadata
     {
         final Collection<Endpoint> endpoints = allEndpoints.stream()
                                                            .filter(e -> e.hasAddress(address))
-                                                           .filter(e -> FailureDetector.instance.isAlive(e))
+                                                           .filter(FailureDetector.instance::isAlive)
                                                            .collect(Collectors.toList());
         if (endpoints.size() > 1)
             throw new IllegalStateException("Bad state: Found at least 2 endpoints with same address: " + address.toString(true));
@@ -326,10 +330,10 @@ public class TokenMetadata
     {
         final Collection<Endpoint> endpoints = allEndpoints.stream()
                                                            .filter(e -> e.hostId.equals(hostId))
-                                                           .filter(e -> FailureDetector.instance.isAlive(e))
+                                                           .filter(FailureDetector.instance::isAlive)
                                                            .collect(Collectors.toList());
         if (endpoints.size() > 1)
-            throw new IllegalStateException("Bad state: Found at least 2 endpoints with same UUID: " + hostId;
+            throw new IllegalStateException("Bad state: Found at least 2 endpoints with same UUID: " + hostId);
 
         return endpoints.size() == 1;
     }
