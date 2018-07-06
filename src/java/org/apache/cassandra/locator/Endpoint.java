@@ -19,19 +19,10 @@
 package org.apache.cassandra.locator;
 
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Optional;
 import java.util.UUID;
 
-import com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.SystemKeyspace;
-import org.apache.cassandra.utils.FastByteOperations;
 
 /**
  * A class to replace the usage of InetAddress to identify hosts in the cluster.
@@ -51,24 +42,24 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     private static final Logger logger = LoggerFactory.getLogger(Endpoint.class);
     private static final long serialVersionUID = 0;
 
-    public InetAddressAndPort localAddress;
+    public InetAddressAndPort listenAddress;
     public InetAddressAndPort broadcastAddress;
     public InetAddressAndPort broadcastNativeAddress;
 
     public UUID hostId;
 
-    public Endpoint(final InetAddressAndPort localAddress,
+    public Endpoint(final InetAddressAndPort listenAddress,
                     final InetAddressAndPort broadcastAddress,
                     final InetAddressAndPort broadcastNativeAddress,
                     final UUID hostId)
     {
-        if (localAddress == null && broadcastAddress == null && broadcastNativeAddress == null)
+        if (listenAddress == null && broadcastAddress == null && broadcastNativeAddress == null)
             throw new IllegalArgumentException("All provided addresses are empty. At least one address must be present!");
 
         if (hostId == null)
             throw new IllegalArgumentException("UUID must be provided when creating an Endpoint");
 
-        this.localAddress = localAddress;
+        this.listenAddress = listenAddress;
         this.broadcastAddress = broadcastAddress;
         this.broadcastNativeAddress = broadcastNativeAddress;
         this.hostId = hostId;
@@ -88,7 +79,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 
         Endpoint that = (Endpoint) o;
 
-        return equalAddresses(localAddress, that.localAddress) &&
+        return equalAddresses(listenAddress, that.listenAddress) &&
                equalAddresses(broadcastAddress, that.broadcastAddress) &&
                equalAddresses(broadcastNativeAddress, that.broadcastNativeAddress);
     }
@@ -111,8 +102,8 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     public int hashCode()
     {
         int result = 0;
-        if (localAddress != null)
-            result += localAddress.hashCode();
+        if (listenAddress != null)
+            result += listenAddress.hashCode();
         if (broadcastAddress != null)
             result += broadcastAddress.hashCode();
         if (broadcastNativeAddress != null)
@@ -128,7 +119,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 //        if (o.hostId == null)
 //            return 1;
 
-        int retvalAddresses = localAddress.compareTo(o.localAddress) + broadcastAddress.compareTo(o.broadcastAddress) + broadcastNativeAddress.compareTo(o.broadcastNativeAddress);
+        int retvalAddresses = listenAddress.compareTo(o.listenAddress) + broadcastAddress.compareTo(o.broadcastAddress) + broadcastNativeAddress.compareTo(o.broadcastNativeAddress);
         if (retvalAddresses != 0)
         {
             return retvalAddresses;
@@ -149,8 +140,8 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     {
         String endpoint = "Endpoint:\n";
 
-        if (localAddress != null)
-            endpoint += "LocalAddress: " + localAddress.toString() + "\n";
+        if (listenAddress != null)
+            endpoint += "LocalAddress: " + listenAddress.toString() + "\n";
 
         if (broadcastAddress != null)
             endpoint += "Broadcast address: " + broadcastAddress.toString() + "\n";
@@ -166,18 +157,19 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 
     @Override
     public Endpoint clone() {
-        return new Endpoint(localAddress, broadcastAddress, broadcastNativeAddress, hostId);
+        return new Endpoint(listenAddress, broadcastAddress, broadcastNativeAddress, hostId);
     }
 
     public boolean hasAddress(InetAddressAndPort address)
     {
-        return address.equals(localAddress) || address.equals(broadcastAddress) || address.equals(broadcastNativeAddress);
+        return address.equals(listenAddress) || address.equals(broadcastAddress) || address.equals(broadcastNativeAddress);
     }
 
     public InetAddressAndPort getPreferredAddress()
     {
         // TODO
-        return localAddress;
+        // return localAddress;
+        throw new IllegalStateException("Implement me!!!");
     }
 
     //    public static UUID getHostId()

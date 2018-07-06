@@ -17,51 +17,48 @@
  */
 package org.apache.cassandra.net;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 
 import org.apache.cassandra.io.IVersionedSerializer;
-import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.locator.Endpoint;
-import org.apache.cassandra.streaming.messages.StreamMessage;
+import org.apache.cassandra.locator.InetAddressAndPort;
 
 /*
  * As of version 4.0 the endpoint description includes a port number as an unsigned short
  */
-public class CompactEndpointSerializationHelper implements IVersionedSerializer<Endpoint>
+public class CompactInetAddressAndPortSerializationHelper implements IVersionedSerializer<InetAddressAndPort>
 {
-    public static final IVersionedSerializer<Endpoint> instance = new CompactEndpointSerializationHelper();
+    public static final IVersionedSerializer<InetAddressAndPort> instance = new CompactInetAddressAndPortSerializationHelper();
 
     /**
      * Streaming uses its own version numbering so we need to ignore it and always use currrent version.
      * There is no cross version streaming so it will always use the latest address serialization.
      **/
-    public static final IVersionedSerializer<Endpoint> streamingInstance = new IVersionedSerializer<Endpoint>()
+    public static final IVersionedSerializer<InetAddressAndPort> streamingInstance = new IVersionedSerializer<InetAddressAndPort>()
     {
-        public void serialize(Endpoint inetAddressAndPort, DataOutputPlus out, int version) throws IOException
+        public void serialize(InetAddressAndPort inetAddressAndPort, DataOutputPlus out, int version) throws IOException
         {
             instance.serialize(inetAddressAndPort, out, MessagingService.current_version);
         }
 
-        public Endpoint deserialize(DataInputPlus in, int version) throws IOException
+        public InetAddressAndPort deserialize(DataInputPlus in, int version) throws IOException
         {
             return instance.deserialize(in, MessagingService.current_version);
         }
 
-        public long serializedSize(Endpoint inetAddressAndPort, int version)
+        public long serializedSize(InetAddressAndPort inetAddressAndPort, int version)
         {
             return instance.serializedSize(inetAddressAndPort, MessagingService.current_version);
         }
     };
 
-    private CompactEndpointSerializationHelper() {}
+    private CompactInetAddressAndPortSerializationHelper() {}
 
-    public void serialize(Endpoint endpoint, DataOutputPlus out, int version) throws IOException
+    public void serialize(InetAddressAndPort endpoint, DataOutputPlus out, int version) throws IOException
     {
         if (version >= MessagingService.VERSION_40)
         {
@@ -78,7 +75,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
         }
     }
 
-    public Endpoint deserialize(DataInputPlus in, int version) throws IOException
+    public InetAddressAndPort deserialize(DataInputPlus in, int version) throws IOException
     {
         int size = in.readByte() & 0xFF;
         switch(size)
@@ -89,7 +86,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
             {
                 byte[] bytes = new byte[size];
                 in.readFully(bytes, 0, bytes.length);
-                return Endpoint.getByAddress(bytes);
+                return InetAddressAndPort.getByAddress(bytes);
             }
             //Address and one port
             case 6:
@@ -99,7 +96,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
                 in.readFully(bytes);
 
                 int port = in.readShort() & 0xFFFF;
-                return Endpoint.getByAddressOverrideDefaults(InetAddress.getByAddress(bytes), bytes, port);
+                return InetAddressAndPort.getByAddressOverrideDefaults(InetAddress.getByAddress(bytes), bytes, port);
             }
             default:
                 throw new AssertionError("Unexpected size " + size);
@@ -107,7 +104,7 @@ public class CompactEndpointSerializationHelper implements IVersionedSerializer<
         }
     }
 
-    public long serializedSize(Endpoint from, int version)
+    public long serializedSize(InetAddressAndPort from, int version)
     {
         //4.0 includes a port number
         if (version >= MessagingService.VERSION_40)

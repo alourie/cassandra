@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.gms;
 
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.locator.InetAddressAndPort;
 
 /**
@@ -33,5 +34,5 @@ public interface IFailureDetectionEventListener
      * @param ep  endpoint to be convicted
      * @param phi the value of phi with with ep was convicted
      */
-    public void convict(InetAddressAndPort ep, double phi);
+    public void convict(Endpoint ep, double phi);
 }
