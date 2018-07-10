@@ -149,9 +149,9 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                 taskLock.lock();
 
                 /* Update the local heartbeat counter. */
-                endpointStateMap.get(FBUtilities.getBroadcastAddressAndPort()).getHeartBeatState().updateHeartBeat();
+                endpointStateMap.get(Endpoint.getLocalEndpoint()).getHeartBeatState().updateHeartBeat();
                 if (logger.isTraceEnabled())
-                    logger.trace("My heartbeat is now {}", endpointStateMap.get(FBUtilities.getBroadcastAddressAndPort()).getHeartBeatState().getHeartBeatVersion());
+                    logger.trace("My heartbeat is now {}", endpointStateMap.get(Endpoint.getLocalEndpoint()).getHeartBeatState().getHeartBeatVersion());
                 final List<GossipDigest> gDigests = new ArrayList<GossipDigest>();
                 Gossiper.instance.makeRandomGossipDigest(gDigests);
 
@@ -285,7 +285,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public Set<Endpoint> getLiveMembers()
     {
-        Endpoint localEndpoint = getLocalEndpoint();
+        Endpoint localEndpoint = Endpoint.getLocalEndpoint();
         Set<Endpoint> liveMembers = new HashSet<>(liveEndpoints);
         if (!liveMembers.contains(localEndpoint))
             liveMembers.add(localEndpoint);
@@ -814,8 +814,9 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             // system.local at startup), then we're good to start up. Otherwise, something
             // is amiss and we need to replace the previous node
             // TODO: is this just return endpoint.hostId.equals(localHostUUID) ?
-            VersionedValue previous = epState.getApplicationState(ApplicationState.HOST_ID);
-            return UUID.fromString(previous.value).equals(localHostUUID);
+//            VersionedValue previous = epState.getApplicationState(ApplicationState.HOST_ID);
+//            return UUID.fromString(previous.value).equals(localHostUUID);
+            return endpoint.getHostId().equals(localHostUUID);
         }
     }
 
@@ -842,7 +843,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         }
 
         Set<Endpoint> eps = endpointStateMap.keySet();
-        Endpoint localEndpoint = getLocalEndpoint();
+        Endpoint localEndpoint = Endpoint.getLocalEndpoint();
         for (Endpoint endpoint : eps)
         {
             if (endpoint.equals(localEndpoint))
@@ -1398,11 +1399,9 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         buildSeedsList();
         /* initialize the heartbeat state for this localEndpoint */
         maybeInitializeLocalState(generationNbr);
-        final Optional<Endpoint> localEndpoint = endpointStateMap.keySet().stream()
-                                            .filter(e -> e.hasAddress(FBUtilities.getBroadcastAddressAndPort()))
-                                            .filter(FailureDetector.instance::isAlive)
-                                            .findFirst();
-        EndpointState localState = endpointStateMap.get(localEndpoint.orElse(null));
+
+        Endpoint localEndpoint = Endpoint.getLocalEndpoint();
+        EndpointState localState = endpointStateMap.get(localEndpoint);
 
         // if for some reason there was no local endpoint in the list of states, error out
         if (localState == null)
@@ -1601,16 +1600,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     // initialize local HB state if needed, i.e., if gossiper has never been started before.
     public void maybeInitializeLocalState(int generationNbr)
     {
-        Endpoint localEndpoint = getLocalEndpoint();
+        Endpoint localEndpoint = Endpoint.getLocalEndpoint();
         HeartBeatState hbState = new HeartBeatState(generationNbr);
         EndpointState localState = new EndpointState(hbState);
         localState.markAlive();
         endpointStateMap.putIfAbsent(localEndpoint, localState);
-    }
-
-    private Endpoint getLocalEndpoint()
-    {
-        return StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort());
     }
 
     public void forceNewerGeneration()
@@ -1625,7 +1619,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public void addSavedEndpoint(Endpoint ep)
     {
-        if (ep.equals(getLocalEndpoint()))
+        if (ep.equals(Endpoint.getLocalEndpoint()))
         {
             logger.debug("Attempt to add self as saved endpoint");
             return;
@@ -1653,7 +1647,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     private void addLocalApplicationStateInternal(ApplicationState state, VersionedValue value)
     {
         assert taskLock.isHeldByCurrentThread();
-        Endpoint localEndpoint = getLocalEndpoint();
+        Endpoint localEndpoint = Endpoint.getLocalEndpoint();
         EndpointState epState = endpointStateMap.get(localEndpoint);
         assert epState != null;
         // Fire "before change" notifications:

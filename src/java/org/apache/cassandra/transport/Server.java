@@ -519,7 +519,7 @@ public class Server implements CassandraDaemon.Server
         {
             try
             {
-                return InetAddressAndPort.getByName(StorageService.instance.getNativeaddress(endpoint, true));
+                return InetAddressAndPort.getByName(StorageService.instance.getNativeAddress(endpoint, true));
             }
             catch (UnknownHostException e)
             {

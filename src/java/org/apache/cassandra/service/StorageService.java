@@ -29,17 +29,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 import javax.management.*;
 import javax.management.openmbean.CompositeData;
-import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.OpenDataException;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
 
-import com.clearspring.analytics.stream.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -82,7 +81,6 @@ import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.locator.*;
 import org.apache.cassandra.metrics.StorageMetrics;
-import org.apache.cassandra.metrics.TableMetrics.Sampler;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.repair.*;
 import org.apache.cassandra.repair.messages.RepairOption;
@@ -106,7 +104,6 @@ import org.apache.cassandra.streaming.*;
 import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.*;
-import org.apache.cassandra.utils.TopKSampler.SamplerResult;
 import org.apache.cassandra.utils.logging.LoggingSupportFactory;
 import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventType;
@@ -173,11 +170,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public List<Range<Token>> getLocalAndPendingRanges(String ks)
     {
-        InetAddressAndPort broadcastAddress = FBUtilities.getBroadcastAddressAndPort();
+        Endpoint localEndpoint = Endpoint.getLocalEndpoint();
         Keyspace keyspace = Keyspace.open(ks);
         List<Range<Token>> ranges = new ArrayList<>();
-        ranges.addAll(keyspace.getReplicationStrategy().getAddressRanges().get(broadcastAddress));
-        ranges.addAll(getTokenMetadata().getPendingRanges(ks, broadcastAddress));
+        ranges.addAll(keyspace.getReplicationStrategy().getAddressRanges().get(localEndpoint));
+        ranges.addAll(getTokenMetadata().getPendingRanges(ks, localEndpoint));
         return Range.normalize(ranges);
     }
 
@@ -245,7 +242,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         SystemKeyspace.updateTokens(tokens);
         Collection<Token> localTokens = getLocalTokens();
         setGossipTokens(localTokens);
-        tokenMetadata.updateNormalTokens(tokens, FBUtilities.getBroadcastAddressAndPort());
+        tokenMetadata.updateNormalTokens(tokens, Endpoint.getLocalEndpoint());
         setMode(Mode.NORMAL, false);
     }
 
@@ -430,7 +427,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * they get the Gossip shutdown message, so even if
      * we don't get time to broadcast this, it is not a problem.
      *
-     * See {@link Gossiper#markAsShutdown(InetAddressAndPort)}
+     * See {@link Gossiper#markAsShutdown(Endpoint)}
      */
     private void shutdownClientServers()
     {
@@ -488,16 +485,24 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         InetAddressAndPort replaceAddress = DatabaseDescriptor.getReplaceAddress();
         logger.info("Gathering node replacement information for {}", replaceAddress);
-        Map<InetAddressAndPort, EndpointState> epStates = Gossiper.instance.doShadowRound();
+        Map<Endpoint, EndpointState> epStates = Gossiper.instance.doShadowRound();
         // as we've completed the shadow round of gossip, we should be able to find the node we're replacing
-        if (epStates.get(replaceAddress) == null)
+        Set<Endpoint> gossipEndpoints = epStates.keySet().stream()
+                                          .filter(e->e.hasAddress(replaceAddress))
+                                          .filter(FailureDetector.instance::isAlive)
+                                          .collect(Collectors.toSet());
+        if (gossipEndpoints.size() == 0)
             throw new RuntimeException(String.format("Cannot replace_address %s because it doesn't exist in gossip", replaceAddress));
 
         validateEndpointSnitch(epStates.values().iterator());
 
         try
         {
-            VersionedValue tokensVersionedValue = epStates.get(replaceAddress).getApplicationState(ApplicationState.TOKENS);
+            VersionedValue tokensVersionedValue;
+            if (gossipEndpoints.size() > 1)
+                throw new RuntimeException(String.format("Found 2 live nodes with the same IP %s", replaceAddress));
+
+            tokensVersionedValue = epStates.get(gossipEndpoints.iterator().next()).getApplicationState(ApplicationState.TOKENS);
             if (tokensVersionedValue == null)
                 throw new RuntimeException(String.format("Could not find tokens for %s to replace", replaceAddress));
 
@@ -508,18 +513,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             throw new RuntimeException(e);
         }
 
-        UUID localHostId = SystemKeyspace.getLocalHostId();
+//        UUID localHostId = SystemKeyspace.getLocalHostId();
 
-        if (isReplacingSameAddress())
-        {
-            localHostId = Gossiper.instance.getHostId(replaceAddress, epStates);
-            SystemKeyspace.setLocalHostId(localHostId); // use the replacee's host Id as our own so we receive hints, etc
-        }
+//        if (isReplacingSameAddress())
+//        {
+//            localHostId = Gossiper.instance.getHostId(replaceAddress, epStates);
+//            SystemKeyspace.setLocalHostId(localHostId); // use the replacee's host Id as our own so we receive hints, etc
+//        }
 
-        return localHostId;
+        return SystemKeyspace.getLocalHostId();
     }
 
-    private synchronized void checkForEndpointCollision(UUID localHostId, Set<InetAddressAndPort> peers) throws ConfigurationException
+    private synchronized void checkForEndpointCollision(UUID localHostId, Set<Endpoint> peers) throws ConfigurationException
     {
         if (Boolean.getBoolean("cassandra.allow_unsafe_join"))
         {
@@ -528,7 +533,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
 
         logger.debug("Starting shadow gossip round to check for endpoint collision");
-        Map<InetAddressAndPort, EndpointState> epStates = Gossiper.instance.doShadowRound(peers);
+        Map<Endpoint, EndpointState> epStates = Gossiper.instance.doShadowRound(peers);
 
         if (epStates.isEmpty() && DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddressAndPort()))
             logger.info("Unable to gossip with any peers but continuing anyway since node is in its own seed list");
@@ -537,7 +542,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // If not bootstrapping, compare the host id for this endpoint learned from gossip (if any) with the local
         // one, which was either read from system.local or generated at startup. If a learned id is present &
         // doesn't match the local, then the node needs replacing
-        if (!Gossiper.instance.isSafeForStartup(FBUtilities.getBroadcastAddressAndPort(), localHostId, shouldBootstrap(), epStates))
+        if (!Gossiper.instance.isSafeForStartup(Endpoint.getLocalEndpoint(), localHostId, shouldBootstrap(), epStates))
         {
             throw new RuntimeException(String.format("A node with address %s already exists, cancelling join. " +
                                                      "Use cassandra.replace_address if you want to replace this node.",
@@ -548,10 +553,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         if (shouldBootstrap() && useStrictConsistency && !allowSimultaneousMoves())
         {
-            for (Map.Entry<InetAddressAndPort, EndpointState> entry : epStates.entrySet())
+            for (Map.Entry<Endpoint, EndpointState> entry : epStates.entrySet())
             {
                 // ignore local node or empty status
-                if (entry.getKey().equals(FBUtilities.getBroadcastAddressAndPort()) || (entry.getValue().getApplicationState(ApplicationState.STATUS_WITH_PORT) == null & entry.getValue().getApplicationState(ApplicationState.STATUS) == null))
+                if (entry.getKey().equals(Endpoint.getLocalEndpoint()) || (entry.getValue().getApplicationState(ApplicationState.STATUS_WITH_PORT) == null & entry.getValue().getApplicationState(ApplicationState.STATUS) == null))
                     continue;
 
                 VersionedValue value = entry.getValue().getApplicationState(ApplicationState.STATUS_WITH_PORT);
@@ -612,11 +617,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (Boolean.parseBoolean(System.getProperty("cassandra.load_ring_state", "true")))
         {
+            Endpoint localEndpoint = null;
             logger.info("Populating token metadata from system tables");
-            Multimap<InetAddressAndPort, Token> loadedTokens = SystemKeyspace.loadTokens();
+            Multimap<Endpoint, Token> loadedTokens = SystemKeyspace.loadTokens();
             if (!shouldBootstrap()) // if we have not completed bootstrapping, we should not add ourselves as a normal token
-                loadedTokens.putAll(FBUtilities.getBroadcastAddressAndPort(), SystemKeyspace.getSavedTokens());
-            for (InetAddressAndPort ep : loadedTokens.keySet())
+                localEndpoint = new Endpoint(
+                    FBUtilities.getLocalAddressAndPort(),
+                    FBUtilities.getBroadcastAddressAndPort(),
+                    null,
+                    FBUtilities.getBroadcastNativeAddressAndPort(),
+                    SystemKeyspace.getLocalHostId()
+                );
+                loadedTokens.putAll(localEndpoint, SystemKeyspace.getSavedTokens());
+            for (Endpoint ep : loadedTokens.keySet())
                 tokenMetadata.updateNormalTokens(loadedTokens.get(ep), ep);
 
             logger.info("Token metadata: {}", tokenMetadata);
@@ -717,13 +730,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (Boolean.parseBoolean(System.getProperty("cassandra.load_ring_state", "true")))
         {
             logger.info("Loading persisted ring state");
-            Multimap<InetAddressAndPort, Token> loadedTokens = SystemKeyspace.loadTokens();
-            Map<InetAddressAndPort, UUID> loadedHostIds = SystemKeyspace.loadHostIds();
-            for (InetAddressAndPort ep : loadedTokens.keySet())
+            Multimap<Endpoint, Token> loadedTokens = SystemKeyspace.loadTokens();
+            Map<Endpoint, UUID> loadedHostIds = SystemKeyspace.loadHostIds();
+            for (Endpoint ep : loadedTokens.keySet())
             {
-                if (ep.equals(FBUtilities.getBroadcastAddressAndPort()))
+                if (ep.hasAddress(FBUtilities.getBroadcastAddressAndPort()))
                 {
-                    // entry has been mistakenly added, delete it
+                    // local entry has been mistakenly added, delete it
                     SystemKeyspace.removeEndpoint(ep);
                 }
                 else
@@ -804,16 +817,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     // so that they don't get clobbered with auto generated ones in joinTokenRing
                     SystemKeyspace.updateTokens(bootstrapTokens);
                 }
-                else if (isReplacingSameAddress())
-                {
-                    //only go into hibernate state if replacing the same address (CASSANDRA-8523)
-                    logger.warn("Writes will not be forwarded to this node during replacement because it has the same address as " +
-                                "the node to be replaced ({}). If the previous node has been down for longer than max_hint_window_in_ms, " +
-                                "repair must be run after the replacement process in order to make this node consistent.",
-                                DatabaseDescriptor.getReplaceAddress());
-                    appStates.put(ApplicationState.STATUS_WITH_PORT, valueFactory.hibernate(true));
-                    appStates.put(ApplicationState.STATUS, valueFactory.hibernate(true));
-                }
+                // TODO: the following is supposedly not needed when isAlive(ep) will be working with UUIDs and not just IPs
+//                else if (isReplacingSameAddress())
+//                {
+//                    //only go into hibernate state if replacing the same address (CASSANDRA-8523)
+//                    logger.warn("Writes will not be forwarded to this node during replacement because it has the same address as " +
+//                                "the node to be replaced ({}). If the previous node has been down for longer than max_hint_window_in_ms, " +
+//                                "repair must be run after the replacement process in order to make this node consistent.",
+//                                DatabaseDescriptor.getReplaceAddress());
+//                    appStates.put(ApplicationState.STATUS_WITH_PORT, valueFactory.hibernate(true));
+//                    appStates.put(ApplicationState.STATUS, valueFactory.hibernate(true));
+//                }
             }
             else
             {
@@ -824,7 +838,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // for bootstrap to get the load info it needs.
             // (we won't be part of the storage ring though until we add a counterId to our state, below.)
             // Seed the host ID-to-endpoint map with our own ID.
-            getTokenMetadata().updateHostId(localHostId, FBUtilities.getBroadcastAddressAndPort());
+            Endpoint localEndpoint = new Endpoint(
+                FBUtilities.getLocalAddressAndPort(),
+                FBUtilities.getBroadcastAddressAndPort(),
+                null,
+                FBUtilities.getBroadcastNativeAddressAndPort(),
+                localHostId
+            );
+            getTokenMetadata().updateHostId(localHostId, localEndpoint);
             appStates.put(ApplicationState.NET_VERSION, valueFactory.networkVersion());
             appStates.put(ApplicationState.HOST_ID, valueFactory.hostId(localHostId));
             appStates.put(ApplicationState.NATIVE_ADDRESS_AND_PORT, valueFactory.nativeaddressAndPort(FBUtilities.getBroadcastNativeAddressAndPort()));
@@ -886,7 +907,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         //
         // We attempted to replace this with a schema-presence check, but you need a meaningful sleep
         // to get schema info from gossip which defeats the purpose.  See CASSANDRA-4427 for the gory details.
-        Set<InetAddressAndPort> current = new HashSet<>();
+        Set<Endpoint> current = new HashSet<>();
         if (logger.isDebugEnabled())
         {
             logger.debug("Bootstrap variables: {} {} {} {}",
@@ -924,16 +945,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                         tokenMetadata.getSizeOfMovingEndpoints() > 0
                     ))
             {
-                String bootstrapTokens = StringUtils.join(tokenMetadata.getBootstrapTokens().valueSet(), ',');
-                String leavingTokens = StringUtils.join(tokenMetadata.getLeavingEndpoints(), ',');
-                String movingTokens = StringUtils.join(tokenMetadata.getMovingEndpoints().stream().map(e -> e.right).toArray(), ',');
+                String bootstrapTokens = StringUtils.join(tokenMetadata.getBootstrapTokens().valueSet().stream().map(Endpoint::toString).toArray(), ',');
+                String leavingTokens = StringUtils.join(tokenMetadata.getLeavingEndpoints().stream().map(Endpoint::toString).toArray(), ',');
+                String movingTokens = StringUtils.join(tokenMetadata.getMovingEndpoints().stream().map(e -> e.right.toString()).toArray(), ',');
                 throw new UnsupportedOperationException(String.format("Other bootstrapping/leaving/moving nodes detected, cannot bootstrap while cassandra.consistent.rangemovement is true. Nodes detected, bootstrapping: %s; leaving: %s; moving: %s;", bootstrapTokens, leavingTokens, movingTokens));
             }
 
             // get bootstrap tokens
             if (!replacing)
             {
-                if (tokenMetadata.isMember(FBUtilities.getBroadcastAddressAndPort()))
+                if (tokenMetadata.isMember(Endpoint.getLocalEndpoint()))
                 {
                     String s = "This node is already a member of the token ring; bootstrap aborted. (If replacing a dead node, remove the old one from the ring first.)";
                     throw new UnsupportedOperationException(s);
@@ -959,7 +980,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     // check for operator errors...
                     for (Token token : bootstrapTokens)
                     {
-                        InetAddressAndPort existing = tokenMetadata.getEndpoint(token);
+                        Endpoint existing = tokenMetadata.getEndpoint(token);
                         if (existing != null)
                         {
                             long nanoDelay = delay * 1000000L;
@@ -973,18 +994,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                         }
                     }
                 }
-                else
-                {
-                    try
-                    {
-                        Thread.sleep(RING_DELAY);
-                    }
-                    catch (InterruptedException e)
-                    {
-                        throw new AssertionError(e);
-                    }
-
-                }
+                // TODO: supposedly not needed anymore, test
+//                else
+//                {
+//                    try
+//                    {
+//                        Thread.sleep(RING_DELAY);
+//                    }
+//                    catch (InterruptedException e)
+//                    {
+//                        throw new AssertionError(e);
+//                    }
+//
+//                }
                 setMode(Mode.JOINING, "Replacing a node with token(s): " + bootstrapTokens, true);
             }
 
@@ -1018,7 +1040,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 // remove the existing info about the replaced node.
                 if (!current.isEmpty())
                 {
-                    for (InetAddressAndPort existing : current)
+                    for (Endpoint existing : current)
                         Gossiper.instance.replacedEndpoint(existing);
                 }
             }
@@ -1042,8 +1064,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void gossipSnitchInfo()
     {
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
-        String dc = snitch.getDatacenter(FBUtilities.getBroadcastAddressAndPort());
-        String rack = snitch.getRack(FBUtilities.getBroadcastAddressAndPort());
+        String dc = snitch.getDatacenter(Endpoint.getLocalEndpoint());
+        String rack = snitch.getRack(Endpoint.getLocalEndpoint());
         Gossiper.instance.addLocalApplicationState(ApplicationState.DC, StorageService.instance.valueFactory.datacenter(dc));
         Gossiper.instance.addLocalApplicationState(ApplicationState.RACK, StorageService.instance.valueFactory.rack(rack));
     }
@@ -1172,7 +1194,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public boolean isJoined()
     {
-        return tokenMetadata.isMember(FBUtilities.getBroadcastAddressAndPort()) && !isSurveyMode;
+        return tokenMetadata.isMember(Endpoint.getLocalEndpoint()) && !isSurveyMode;
     }
 
     public void rebuild(String sourceDc)
@@ -1523,7 +1545,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         else
         {
             // Dont set any state for the node which is bootstrapping the existing token...
-            tokenMetadata.updateNormalTokens(tokens, FBUtilities.getBroadcastAddressAndPort());
+            // TODO: Do we have to do this for "replacing different address" ?
+            tokenMetadata.updateNormalTokens(tokens, Endpoint.getLocalEndpoint());
             SystemKeyspace.removeEndpoint(DatabaseDescriptor.getReplaceAddress());
         }
         if (!Gossiper.instance.seenAnySeed())
@@ -1700,29 +1723,30 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     /**
      * Return the native address associated with an endpoint as a string.
-     * @param endpoint The endpoint to get rpc address for
+     * @param address The endpoint to get rpc address for
      * @return the native address
      */
-    public String getNativeaddress(InetAddressAndPort endpoint, boolean withPort)
+    public String getNativeAddress(InetAddressAndPort address, boolean withPort)
     {
-        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
+        EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(getTokenMetadata().getEndpointForAddress(address));
+        if (address.equals(FBUtilities.getBroadcastAddressAndPort()))
             return FBUtilities.getBroadcastNativeAddressAndPort().toString(withPort);
-        else if (Gossiper.instance.getEndpointStateForEndpoint(endpoint).getApplicationState(ApplicationState.NATIVE_ADDRESS_AND_PORT) != null)
+        else if (epState.getApplicationState(ApplicationState.NATIVE_ADDRESS_AND_PORT) != null)
         {
             try
             {
-                InetAddressAndPort address = InetAddressAndPort.getByName(Gossiper.instance.getEndpointStateForEndpoint(endpoint).getApplicationState(ApplicationState.NATIVE_ADDRESS_AND_PORT).value);
-                return address.getHostAddress(withPort);
+                InetAddressAndPort storedAddress = InetAddressAndPort.getByName(epState.getApplicationState(ApplicationState.NATIVE_ADDRESS_AND_PORT).value);
+                return storedAddress.getHostAddress(withPort);
             }
             catch (UnknownHostException e)
             {
                 throw new RuntimeException(e);
             }
         }
-        else if (Gossiper.instance.getEndpointStateForEndpoint(endpoint).getApplicationState(ApplicationState.RPC_ADDRESS) == null)
-            return endpoint.address.getHostAddress() + ":" + DatabaseDescriptor.getNativeTransportPort();
+        else if (epState.getApplicationState(ApplicationState.RPC_ADDRESS) == null)
+            return address.address.getHostAddress() + ":" + DatabaseDescriptor.getNativeTransportPort();
         else
-            return Gossiper.instance.getEndpointStateForEndpoint(endpoint).getApplicationState(ApplicationState.RPC_ADDRESS).value + ":" + DatabaseDescriptor.getNativeTransportPort();
+            return epState.getApplicationState(ApplicationState.RPC_ADDRESS).value + ":" + DatabaseDescriptor.getNativeTransportPort();
     }
 
     public Map<List<String>, List<String>> getRangeToRpcaddressMap(String keyspace)
@@ -1749,7 +1773,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             List<String> rpcaddrs = new ArrayList<>(entry.getValue().size());
             for (InetAddressAndPort endpoint: entry.getValue())
             {
-                rpcaddrs.add(getNativeaddress(endpoint, withPort));
+                rpcaddrs.add(getNativeAddress(endpoint, withPort));
             }
             map.put(entry.getKey().asList(), rpcaddrs);
         }
@@ -1774,34 +1798,34 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             keyspace = Schema.instance.getNonLocalStrategyKeyspaces().get(0);
 
         Map<List<String>, List<String>> map = new HashMap<>();
-        for (Map.Entry<Range<Token>, Collection<InetAddressAndPort>> entry : tokenMetadata.getPendingRangesMM(keyspace).asMap().entrySet())
+        for (Map.Entry<Range<Token>, Collection<Endpoint>> entry : tokenMetadata.getPendingRangesMM(keyspace).asMap().entrySet())
         {
-            List<InetAddressAndPort> l = new ArrayList<>(entry.getValue());
+            List<InetAddressAndPort> l = entry.getValue().stream().map(Endpoint::getPreferredAddress).collect(Collectors.toList());
             map.put(entry.getKey().asList(), stringify(l, withPort));
         }
         return map;
     }
 
-    public Map<Range<Token>, List<InetAddressAndPort>> getRangeToAddressMap(String keyspace)
+    public Map<Range<Token>, List<Endpoint>> getRangeToAddressMap(String keyspace)
     {
         return getRangeToAddressMap(keyspace, tokenMetadata.sortedTokens());
     }
 
-    public Map<Range<Token>, List<InetAddressAndPort>> getRangeToAddressMapInLocalDC(String keyspace)
+    public Map<Range<Token>, List<Endpoint>> getRangeToAddressMapInLocalDC(String keyspace)
     {
-        Predicate<InetAddressAndPort> isLocalDC = new Predicate<InetAddressAndPort>()
+        Predicate<Endpoint> isLocalDC = new Predicate<Endpoint>()
         {
-            public boolean apply(InetAddressAndPort address)
+            public boolean apply(Endpoint address)
             {
                 return isLocalDC(address);
             }
         };
 
-        Map<Range<Token>, List<InetAddressAndPort>> origMap = getRangeToAddressMap(keyspace, getTokensInLocalDC());
-        Map<Range<Token>, List<InetAddressAndPort>> filteredMap = Maps.newHashMap();
-        for (Map.Entry<Range<Token>, List<InetAddressAndPort>> entry : origMap.entrySet())
+        Map<Range<Token>, List<Endpoint>> origMap = getRangeToAddressMap(keyspace, getTokensInLocalDC());
+        Map<Range<Token>, List<Endpoint>> filteredMap = Maps.newHashMap();
+        for (Map.Entry<Range<Token>, List<Endpoint>> entry : origMap.entrySet())
         {
-            List<InetAddressAndPort> endpointsInLocalDC = Lists.newArrayList(Collections2.filter(entry.getValue(), isLocalDC));
+            List<Endpoint> endpointsInLocalDC = Lists.newArrayList(Collections2.filter(entry.getValue(), isLocalDC));
             filteredMap.put(entry.getKey(), endpointsInLocalDC);
         }
 
@@ -1813,21 +1837,21 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         List<Token> filteredTokens = Lists.newArrayList();
         for (Token token : tokenMetadata.sortedTokens())
         {
-            InetAddressAndPort endpoint = tokenMetadata.getEndpoint(token);
+            Endpoint endpoint = tokenMetadata.getEndpoint(token);
             if (isLocalDC(endpoint))
                 filteredTokens.add(token);
         }
         return filteredTokens;
     }
 
-    private boolean isLocalDC(InetAddressAndPort targetHost)
+    private boolean isLocalDC(Endpoint targetHost)
     {
         String remoteDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(targetHost);
-        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
+        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(Endpoint.getLocalEndpoint());
         return remoteDC.equals(localDC);
     }
 
-    private Map<Range<Token>, List<InetAddressAndPort>> getRangeToAddressMap(String keyspace, List<Token> sortedTokens)
+    private Map<Range<Token>, List<Endpoint>> getRangeToAddressMap(String keyspace, List<Token> sortedTokens)
     {
         // some people just want to get a visual representation of things. Allow null and set it to the first
         // non-system keyspace.
@@ -1971,10 +1995,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private  Map<String, String> getEndpointToHostId(boolean withPort)
     {
-        Map<String, String> mapOut = new HashMap<>();
-        for (Map.Entry<InetAddressAndPort, UUID> entry : getTokenMetadata().getEndpointToHostIdMapForReading().entrySet())
-            mapOut.put(entry.getKey().getHostAddress(withPort), entry.getValue().toString());
-        return mapOut;
+//        Map<String, String> mapOut = new HashMap<>();
+//        for (Map.Entry<InetAddressAndPort, UUID> entry : getTokenMetadata().getEndpointToHostIdMapForReading().entrySet())
+//            mapOut.put(entry.getKey().getHostAddress(withPort), entry.getValue().toString());
+//        return mapOut;
+        return getTokenMetadata().getAllEndpoints().stream()
+                          .filter(FailureDetector.instance::isAlive)
+                          .collect(Collectors.toMap(e -> e.getPreferredAddress().getHostAddress(withPort), e -> e.getHostId().toString()));
     }
 
     public Map<String, String> getHostIdToEndpoint()

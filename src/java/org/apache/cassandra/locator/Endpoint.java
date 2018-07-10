@@ -27,6 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.FBUtilities;
+import org.hsqldb.lib.Storage;
 
 /**
  * A class to replace the usage of InetAddress to identify hosts in the cluster.
@@ -48,14 +51,13 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 
     private InetAddressAndPort listenAddress;
     private InetAddressAndPort broadcastAddress;
+    // TODO: do we still need it?? Can't say
     private InetAddressAndPort nativeAddress;
     private InetAddressAndPort broadcastNativeAddress;
     private InetAddressAndPort preferredAddress = null;
 
     private UUID hostId;
 
-
-    private final InetAddressAndPort defaultNativeAddress = getDefaultNativeAddress();
 
     public Endpoint(final InetAddressAndPort listenAddress,
                     final InetAddressAndPort broadcastAddress,
@@ -64,10 +66,11 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
                     final UUID hostId)
     {
         if (listenAddress == null)
-            throw new IllegalArgumentException("listen address provided is empty!");
+            throw new IllegalArgumentException("listen_address provided is empty!");
 
         this.listenAddress = listenAddress;
-        if (broadcastAddress == null) {
+        if (broadcastAddress == null)
+        {
             this.broadcastAddress = listenAddress;
         }
         else
@@ -75,23 +78,25 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             this.broadcastAddress = broadcastAddress;
         }
 
-        if (nativeAddress == null) {
-            this.nativeAddress = defaultNativeAddress;
+        if (nativeAddress == null)
+        {
+            this.nativeAddress = getDefaultNativeAddress();
         }
         else
         {
             this.nativeAddress = nativeAddress;
         }
 
-        if (broadcastNativeAddress == null) {
-            if (this.nativeAddress != defaultNativeAddress)
+        if (broadcastNativeAddress == null)
+        {
+            if (this.nativeAddress != getDefaultNativeAddress())
                 this.broadcastNativeAddress = nativeAddress;
             else
                 this.broadcastNativeAddress = this.broadcastAddress;
         }
         else
         {
-            this.broadcastNativeAddress= broadcastAddress;
+            this.broadcastNativeAddress = broadcastAddress;
         }
 
         // hostId can be null in some cases, for example when seeds list is initiated and only IP is known
@@ -121,7 +126,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     private boolean equalAddresses(InetAddressAndPort me, InetAddressAndPort other)
     {
         // both null
-        if ( me == null && other == null)
+        if (me == null && other == null)
             return true;
 
         // me not null
@@ -181,19 +186,19 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             endpoint += "Broadcast address: " + broadcastAddress.toString() + "\n";
 
         if (nativeAddress != null)
-            endpoint += "Native address: " + nativeAddress.toString()  + "\n";
+            endpoint += "Native address: " + nativeAddress.toString() + "\n";
 
         if (broadcastNativeAddress != null)
-            endpoint += "Broadcast native address: " + broadcastNativeAddress.toString()  + "\n";
+            endpoint += "Broadcast native address: " + broadcastNativeAddress.toString() + "\n";
 
         endpoint += "HostID: " + hostId;
 
         return endpoint;
-
     }
 
     @Override
-    public Endpoint clone() {
+    public Endpoint clone()
+    {
         return new Endpoint(listenAddress, broadcastAddress, nativeAddress, broadcastNativeAddress, hostId);
     }
 
@@ -211,9 +216,15 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
         this.hostId = sourceEndpoint.hostId;
     }
 
-    public UUID getHostId() {return hostId;}
+    public UUID getHostId()
+    {
+        return hostId;
+    }
 
-    public void setHostId(final UUID uuid) {hostId = uuid;}
+    public void setHostId(final UUID uuid)
+    {
+        hostId = uuid;
+    }
 
     public InetAddressAndPort getPreferredAddress()
     {
@@ -236,6 +247,23 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             return null;
         }
     }
+
+    public static Endpoint getLocalEndpoint()
+    {
+        Endpoint localEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort(), false);
+
+        // not in TokenMetadata yet
+        if (localEndpoint == null)
+            localEndpoint = new Endpoint(
+            FBUtilities.getLocalAddressAndPort(),
+            FBUtilities.getBroadcastAddressAndPort(),
+            null,
+            FBUtilities.getBroadcastNativeAddressAndPort(),
+            null
+            );
+        return localEndpoint;
+    }
+}
 
     //    public static UUID getHostId()
 //    {
@@ -262,4 +290,4 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 //
 //    }
 
-}
+

@@ -49,7 +49,7 @@ public class TokenMetadata
 
     /**
      * Maintains token to endpoint map of every node in the cluster.
-     * Each Token is associated with exactly one Address, but each Address may have
+     * Each Token is associated with exactly one Endpoint, but each Endpoint may have
      * multiple tokens.  Hence, the BiMultiValMap collection.
      */
     private final BiMultiValMap<Token, Endpoint> tokenToEndpointMap;
@@ -107,7 +107,7 @@ public class TokenMetadata
 
     public TokenMetadata()
     {
-        this(SortedBiMultiValMap.<Token, Endpoint>create(),
+        this(SortedBiMultiValMap.create(),
              new HashSet<>(),
              new Topology(),
              DatabaseDescriptor.getPartitioner());
@@ -255,25 +255,27 @@ public class TokenMetadata
                 return;
             }
 
-
-            // Check if there's another node with the same ID
-            Set<Endpoint> liveEndpointsWithId = allEndpoints.stream()
-                                                            .filter(e -> e.getHostId().equals(hostId))
-                                                            .filter(FailureDetector.instance::isAlive)
-                                                            .collect(Collectors.toSet());
-            for (Endpoint storedEndpoint : liveEndpointsWithId)
-                if (!storedEndpoint.equals(newEndpoint))
-                    throw new RuntimeException(String.format("Host ID collision between active endpoint %s and a new %s",
-                                                             storedEndpoint,
-                                                             newEndpoint));
-
-
-            // If no problems found, update the hostID
-            if (!allEndpoints.contains(newEndpoint))
+            if (allEndpoints.contains(newEndpoint))
             {
-                allEndpoints.remove(endpointToUpdate);
-                allEndpoints.add(newEndpoint);
+                logger.info("The provided endpoint with the provided ID already exists");
+                return;
             }
+
+            // Check if there's another live node with the same ID
+            long liveEndpointsWithId = allEndpoints.stream()
+                                                    .filter(e -> e.getHostId().equals(hostId))
+                                                    .filter(FailureDetector.instance::isAlive)
+                                                    .filter(e -> e.equals(newEndpoint))
+                                                    .count();
+            if (liveEndpointsWithId > 0)
+                throw new RuntimeException(String.format("Host ID collision between active endpoint %s and a new %s",
+                                                         getEndpointForHostId(hostId),
+                                                         newEndpoint));
+
+
+            // If no problems found, replace the entry with the hostID
+            allEndpoints.remove(endpointToUpdate);
+            allEndpoints.add(newEndpoint);
         }
         finally
         {
