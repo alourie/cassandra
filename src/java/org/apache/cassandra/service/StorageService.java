@@ -3084,15 +3084,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return stringify(Gossiper.instance.getLiveMembers(), true);
     }
 
-    public Set<InetAddressAndPort> getLiveRingMembers()
+    public Set<Endpoint> getLiveRingMembers()
     {
         return getLiveRingMembers(false);
     }
 
-    public Set<InetAddressAndPort> getLiveRingMembers(boolean excludeDeadStates)
+    public Set<Endpoint> getLiveRingMembers(boolean excludeDeadStates)
     {
-        Set<InetAddressAndPort> ret = new HashSet<>();
-        for (InetAddressAndPort ep : Gossiper.instance.getLiveMembers())
+        Set<Endpoint> ret = new HashSet<>();
+        for (Endpoint ep : Gossiper.instance.getLiveMembers())
         {
             if (excludeDeadStates)
             {

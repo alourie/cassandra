@@ -285,9 +285,10 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public Set<Endpoint> getLiveMembers()
     {
+        Endpoint localEndpoint = getLocalEndpoint();
         Set<Endpoint> liveMembers = new HashSet<>(liveEndpoints);
-        if (!liveMembers.contains(FBUtilities.getBroadcastAddressAndPort()))
-            liveMembers.add(FBUtilities.getBroadcastAddressAndPort());
+        if (!liveMembers.contains(localEndpoint))
+            liveMembers.add(localEndpoint);
         return liveMembers;
     }
 
@@ -461,7 +462,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         unreachableEndpoints.remove(endpoint);
         MessagingService.instance().resetVersion(endpoint);
         quarantineEndpoint(endpoint);
-        MessagingService.instance().destroyConnectionPool(endpoint);
+        MessagingService.instance().destroyConnectionPool(endpoint.getPreferredAddress());
         if (logger.isDebugEnabled())
             logger.debug("removing endpoint {}", endpoint);
     }
@@ -621,7 +622,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     public void assassinateEndpoint(String address) throws UnknownHostException
     {
         InetAddressAndPort endpointAddress = InetAddressAndPort.getByName(address);
-        Endpoint endpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(endpointAddress);
+        Endpoint endpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(endpointAddress, false);
 
         // if no endpoints with this address, nothing to do
         if (endpoint == null)
@@ -841,7 +842,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         }
 
         Set<Endpoint> eps = endpointStateMap.keySet();
-        Endpoint localEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort());
+        Endpoint localEndpoint = getLocalEndpoint();
         for (Endpoint endpoint : eps)
         {
             if (endpoint.equals(localEndpoint))
@@ -1051,7 +1052,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             }
         };
 
-        MessagingService.instance().sendRR(echoMessage, endpoint, echoHandler);
+        MessagingService.instance().sendRR(echoMessage, endpoint.getPreferredAddress(), echoHandler);
     }
 
     @VisibleForTesting
@@ -1171,7 +1172,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     void applyStateLocally(Map<Endpoint, EndpointState> epStateMap)
     {
-        Endpoint localEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort());
+        Endpoint localEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort(), false);
         for (Entry<Endpoint, EndpointState> entry : epStateMap.entrySet())
         {
             Endpoint ep = entry.getKey();
@@ -1276,7 +1277,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     }
 
     // notify that a local application state is going to change (doesn't get triggered for remote changes)
-    private void doBeforeChangeNotifications(InetAddressAndPort addr, EndpointState epState, ApplicationState apState, VersionedValue newValue)
+    private void doBeforeChangeNotifications(Endpoint addr, EndpointState epState, ApplicationState apState, VersionedValue newValue)
     {
         for (IEndpointStateChangeSubscriber subscriber : subscribers)
         {
@@ -1518,14 +1519,28 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     @VisibleForTesting
     void buildSeedsList()
     {
-        // TODO!!!!
+        refreshSeedEndpoints();
         for (InetAddressAndPort seedAddress : DatabaseDescriptor.getSeeds())
         {
             if (seedAddress.equals(FBUtilities.getBroadcastAddressAndPort()) || seeds.stream().anyMatch(e -> e.hasAddress(seedAddress)))
                 continue;
-            seeds.add(seedAddress);
+            seeds.add(StorageService.instance.getTokenMetadata().getEndpointForAddress(seedAddress));
         }
     }
+
+    /**
+     *     Go over the seeds and update their endpoint objects with what's known in TokenMetadata
+      */
+    private void refreshSeedEndpoints()
+    {
+        for (Endpoint seed : seeds)
+        {
+           final Endpoint tmEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(seed.getPreferredAddress(), false);
+           if (tmEndpoint != null)
+               seed.updateValuesFrom(tmEndpoint);
+        }
+    }
+
 
     /**
      * JMX interface for triggering an update of the seed node list.
@@ -1535,14 +1550,14 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         logger.trace("Triggering reload of seed node list");
 
         // Get the new set in the same that buildSeedsList does
-        Set<InetAddressAndPort> tmp = new HashSet<>();
+        Set<Endpoint> tmp = new HashSet<>();
         try
         {
-            for (InetAddressAndPort seed : DatabaseDescriptor.getSeeds())
+            for (InetAddressAndPort seedAddress : DatabaseDescriptor.getSeeds())
             {
-                if (seed.equals(FBUtilities.getBroadcastAddressAndPort()))
+                if (seedAddress.equals(FBUtilities.getBroadcastAddressAndPort()) || seeds.stream().anyMatch(e -> e.hasAddress(seedAddress)))
                     continue;
-                tmp.add(seed);
+                tmp.add(StorageService.instance.getTokenMetadata().getEndpointForAddress(seedAddress));
             }
         }
         // If using the SimpleSeedProvider invalid yaml added to the config since startup could
@@ -1580,21 +1595,22 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public List<String> getSeeds()
     {
-        List<String> seedList = new ArrayList<String>();
-        for (Endpoint seed : seeds)
-        {
-            seedList.add(seed.getPreferredAddress().toString(true));
-        }
-        return seedList;
+        return seeds.stream().map(e -> e.getPreferredAddress().toString(true)).collect(Collectors.toList());
     }
 
     // initialize local HB state if needed, i.e., if gossiper has never been started before.
     public void maybeInitializeLocalState(int generationNbr)
     {
+        Endpoint localEndpoint = getLocalEndpoint();
         HeartBeatState hbState = new HeartBeatState(generationNbr);
         EndpointState localState = new EndpointState(hbState);
         localState.markAlive();
-        endpointStateMap.putIfAbsent(FBUtilities.getBroadcastAddressAndPort(), localState);
+        endpointStateMap.putIfAbsent(localEndpoint, localState);
+    }
+
+    private Endpoint getLocalEndpoint()
+    {
+        return StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort());
     }
 
     public void forceNewerGeneration()
@@ -1607,9 +1623,9 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     /**
      * Add an endpoint we knew about previously, but whose state is unknown
      */
-    public void addSavedEndpoint(InetAddressAndPort ep)
+    public void addSavedEndpoint(Endpoint ep)
     {
-        if (ep.equals(FBUtilities.getBroadcastAddressAndPort()))
+        if (ep.equals(getLocalEndpoint()))
         {
             logger.debug("Attempt to add self as saved endpoint");
             return;
@@ -1637,18 +1653,18 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     private void addLocalApplicationStateInternal(ApplicationState state, VersionedValue value)
     {
         assert taskLock.isHeldByCurrentThread();
-        InetAddressAndPort epAddr = FBUtilities.getBroadcastAddressAndPort();
-        EndpointState epState = endpointStateMap.get(epAddr);
+        Endpoint localEndpoint = getLocalEndpoint();
+        EndpointState epState = endpointStateMap.get(localEndpoint);
         assert epState != null;
         // Fire "before change" notifications:
-        doBeforeChangeNotifications(epAddr, epState, state, value);
+        doBeforeChangeNotifications(localEndpoint, epState, state, value);
         // Notifications may have taken some time, so preventively raise the version
         // of the new value, otherwise it could be ignored by the remote node
         // if another value with a newer version was received in the meantime:
         value = StorageService.instance.valueFactory.cloneWithHigherVersion(value);
         // Add to local application state and fire "on change" notifications:
         epState.addApplicationState(state, value);
-        doOnChangeNotifications(epAddr, state, value);
+        doOnChangeNotifications(localEndpoint, state, value);
     }
 
     public void addLocalApplicationState(ApplicationState applicationState, VersionedValue value)
@@ -1740,8 +1756,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         HeartBeatState hbState = new HeartBeatState(generationNbr);
         EndpointState newState = new EndpointState(hbState);
+        Endpoint endpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(addr, false);
+        if (endpoint == null)
+           endpoint = new Endpoint(addr, null, null, null, uuid);
         newState.markAlive();
-        EndpointState oldState = endpointStateMap.putIfAbsent(new Endpoint(addr, addr, null, uuid), newState);
+        EndpointState oldState = endpointStateMap.putIfAbsent(endpoint, newState);
         EndpointState localState = oldState == null ? newState : oldState;
 
         // always add the version state
@@ -1760,12 +1779,12 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     public long getEndpointDowntime(String address) throws UnknownHostException
     {
-        return getEndpointDowntime(InetAddressAndPort.getByName(address));
+        return getEndpointDowntime(StorageService.instance.getTokenMetadata().getEndpointForAddress(InetAddressAndPort.getByName(address)));
     }
 
     public int getCurrentGenerationNumber(String address) throws UnknownHostException
     {
-        return getCurrentGenerationNumber(InetAddressAndPort.getByName(address));
+        return getCurrentGenerationNumber(StorageService.instance.getTokenMetadata().getEndpointForAddress(InetAddressAndPort.getByName(address)));
     }
 
     public void addExpireTimeForEndpoint(Endpoint endpoint, long expireTime)
@@ -1798,12 +1817,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         {
             CassandraVersion version = getReleaseVersion(host);
             String stringVersion = version == null ? "" : version.toString();
-            List<String> hosts = results.get(stringVersion);
-            if (hosts == null)
-            {
-                hosts = new ArrayList<>();
-                results.put(stringVersion, hosts);
-            }
+            List<String> hosts = results.computeIfAbsent(stringVersion, k -> new ArrayList<>());
             hosts.add(host.getPreferredAddress().getHostAddress(true));
         }
 

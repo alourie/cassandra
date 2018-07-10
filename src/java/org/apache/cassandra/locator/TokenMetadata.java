@@ -54,7 +54,9 @@ public class TokenMetadata
      */
     private final BiMultiValMap<Token, Endpoint> tokenToEndpointMap;
 
-    /** Maintains the list of all endpoints (representing every node in the cluster) */
+    /**
+     * Maintains the list of all endpoints (representing every node in the cluster)
+     */
     private final Set<Endpoint> allEndpoints;
 
     // Prior to CASSANDRA-603, we just had <tt>Map<Range, Endpoint> pendingRanges<tt>,
@@ -134,7 +136,9 @@ public class TokenMetadata
         return new ArrayList<>(tokenToEndpointMap.keySet());
     }
 
-    /** @return the number of nodes bootstrapping into source's primary range */
+    /**
+     * @return the number of nodes bootstrapping into source's primary range
+     */
     public int pendingRangeChanges(Endpoint source)
     {
         int n = 0;
@@ -172,7 +176,7 @@ public class TokenMetadata
 
     /**
      * Update token map with a set of token/endpoint pairs in normal state.
-     *
+     * <p>
      * Prefer this whenever there are multiple pairs to update, as each update (whether a single or multiple)
      * is expensive (CASSANDRA-3831).
      */
@@ -224,25 +228,21 @@ public class TokenMetadata
      * cannot be changed after the fact.
      */
 
-    // TODO: make it something like updateEndpointEntry
+    // TODO: rename it to something like updateEndpointEntry
     public void updateHostId(UUID hostId, InetAddressAndPort endpointAddress)
     {
-        Endpoint endpoint = getEndpointForAddress(endpointAddress);
-        if (endpoint == null)
-            // initial addition of this specific address/uuid pair, so creating a new Endpoint object
-            endpoint = new Endpoint(endpointAddress, null, null, hostId);
-        updateHostId(hostId, endpoint);
+        updateHostId(hostId, getEndpointForAddress(endpointAddress));
     }
 
     // TODO: make it something like updateEndpointEntry
     public void updateHostId(UUID hostId, Endpoint endpointToUpdate)
     {
         assert hostId != null;
-        assert endpointToUpdate != null;
 
         // Create a new object with an updated hostId
         final Endpoint newEndpoint = endpointToUpdate.clone();
-        newEndpoint.hostId = hostId;
+        newEndpoint.setHostId(hostId);
+
 
 
         lock.writeLock().lock();
@@ -255,10 +255,14 @@ public class TokenMetadata
                 return;
             }
 
+
             // Check if there's another node with the same ID
-            Set<Endpoint> storedEndpointsWithId = allEndpoints.stream().filter(e -> e.hostId.equals(hostId)).collect(Collectors.toSet());
-            for (Endpoint storedEndpoint : storedEndpointsWithId)
-                if (FailureDetector.instance.isAlive(storedEndpoint) && !storedEndpoint.equals(newEndpoint))
+            Set<Endpoint> liveEndpointsWithId = allEndpoints.stream()
+                                                            .filter(e -> e.getHostId().equals(hostId))
+                                                            .filter(FailureDetector.instance::isAlive)
+                                                            .collect(Collectors.toSet());
+            for (Endpoint storedEndpoint : liveEndpointsWithId)
+                if (!storedEndpoint.equals(newEndpoint))
                     throw new RuntimeException(String.format("Host ID collision between active endpoint %s and a new %s",
                                                              storedEndpoint,
                                                              newEndpoint));
@@ -267,8 +271,8 @@ public class TokenMetadata
             // If no problems found, update the hostID
             if (!allEndpoints.contains(newEndpoint))
             {
-                    allEndpoints.remove(endpointToUpdate);
-                    allEndpoints.add(newEndpoint);
+                allEndpoints.remove(endpointToUpdate);
+                allEndpoints.add(newEndpoint);
             }
         }
         finally
@@ -277,13 +281,15 @@ public class TokenMetadata
         }
     }
 
-    /** Return the end-point for a unique host ID */
+    /**
+     * Return the end-point for a unique host ID
+     */
     public Endpoint getEndpointForHostId(UUID otherHostId)
     {
         lock.readLock().lock();
         try
         {
-            final Optional<Endpoint> endpoint = allEndpoints.stream().filter(e -> e.hostId.equals(otherHostId)).findFirst();
+            final Optional<Endpoint> endpoint = allEndpoints.stream().filter(e -> e.getHostId().equals(otherHostId)).findFirst();
             return endpoint.orElse(null);
         }
         finally
@@ -294,6 +300,11 @@ public class TokenMetadata
 
     public Endpoint getEndpointForAddress(final InetAddressAndPort address)
     {
+        return getEndpointForAddress(address, true);
+    }
+
+    public Endpoint getEndpointForAddress(final InetAddressAndPort address, final boolean createIfDontExist)
+    {
         lock.readLock().lock();
         try
         {
@@ -302,11 +313,15 @@ public class TokenMetadata
 
             // Find a first Endpoint that has the provided address in any of it's address fields.
             // The allEndpoints set doesn't include more than 1 such endpoint as per the check above
-            return allEndpoints.stream()
+            Endpoint endpoint = allEndpoints.stream()
                                .filter(e -> e.hasAddress(address))
                                .filter(FailureDetector.instance::isAlive)
                                .findFirst()
                                .orElse(null);
+            if (endpoint == null && createIfDontExist)
+                endpoint = new Endpoint(address, null, null, null, null);
+
+            return endpoint;
         }
         finally
         {
@@ -321,7 +336,7 @@ public class TokenMetadata
                                                            .filter(FailureDetector.instance::isAlive)
                                                            .collect(Collectors.toList());
         if (endpoints.size() > 1)
-            throw new IllegalStateException("Bad state: Found at least 2 endpoints with same address: " + address.toString(true));
+            throw new IllegalStateException("Bad state: Found at least 2 live endpoints with the same address: " + address.toString(true));
 
         return endpoints.size() == 1;
     }
@@ -329,11 +344,11 @@ public class TokenMetadata
     private boolean isHostIdTaken(final UUID hostId)
     {
         final Collection<Endpoint> endpoints = allEndpoints.stream()
-                                                           .filter(e -> e.hostId.equals(hostId))
+                                                           .filter(e -> e.getHostId().equals(hostId))
                                                            .filter(FailureDetector.instance::isAlive)
                                                            .collect(Collectors.toList());
         if (endpoints.size() > 1)
-            throw new IllegalStateException("Bad state: Found at least 2 endpoints with same UUID: " + hostId);
+            throw new IllegalStateException("Bad state: Found at least 2 live endpoints with same UUID: " + hostId);
 
         return endpoints.size() == 1;
     }
@@ -347,7 +362,7 @@ public class TokenMetadata
         lock.readLock().lock();
         try
         {
-            return allEndpoints.stream().collect(Collectors.toMap(e -> e, e -> e.hostId));
+            return allEndpoints.stream().collect(Collectors.toMap(e -> e, Endpoint::getHostId));
         }
         finally
         {

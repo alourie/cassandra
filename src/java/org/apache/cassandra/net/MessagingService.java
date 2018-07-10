@@ -87,6 +87,7 @@ import org.apache.cassandra.hints.HintResponse;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.locator.ILatencySubscriber;
 import org.apache.cassandra.locator.InetAddressAndPort;
@@ -524,7 +525,7 @@ public final class MessagingService implements MessagingServiceMBean
     private final List<ILatencySubscriber> subscribers = new ArrayList<ILatencySubscriber>();
 
     // protocol versions of the other nodes in the cluster
-    private final ConcurrentMap<InetAddressAndPort, Integer> versions = new NonBlockingHashMap<>();
+    private final ConcurrentMap<Endpoint, Integer> versions = new NonBlockingHashMap<>();
 
     // message sinks are a testing hook
     private final Set<IMessageSink> messageSinks = new CopyOnWriteArraySet<>();
@@ -1201,19 +1202,19 @@ public final class MessagingService implements MessagingServiceMBean
     }
 
     /**
-     * @return the last version associated with address, or @param version if this is the first such version
+     * @return the last version associated with an endpoint, or @param version if this is the first such version
      */
-    public int setVersion(InetAddressAndPort endpoint, int version)
+    public int setVersion(Endpoint endpoint, int version)
     {
-        logger.trace("Setting version {} for {}", version, endpoint);
+        logger.trace("Setting version {} for {}", version, endpoint.toString());
 
         Integer v = versions.put(endpoint, version);
         return v == null ? version : v;
     }
 
-    public void resetVersion(InetAddressAndPort endpoint)
+    public void resetVersion(Endpoint endpoint)
     {
-        logger.trace("Resetting version for {}", endpoint);
+        logger.trace("Resetting version for {}", endpoint.toString());
         versions.remove(endpoint);
     }
 
@@ -1659,7 +1660,7 @@ public final class MessagingService implements MessagingServiceMBean
         if (!secure)
             return address.port;
 
-        Integer v = versions.get(address);
+        Integer v = versions.get(StorageService.instance.getTokenMetadata().getEndpointForAddress(address));
         // if we don't know the version of the peer, assume it is 4.0 (or higher) as the only time is would be lower
         // (as in a 3.x version) is during a cluster upgrade (from 3.x to 4.0). In that case the outbound connection will
         // unfortunately fail - however the peer should connect to this node (at some point), and once we learn it's version, it'll be
@@ -1681,9 +1682,12 @@ public final class MessagingService implements MessagingServiceMBean
         return pool.getConnection(messageOut).isConnected();
     }
 
-    public static boolean isEncryptedConnection(InetAddressAndPort address)
+    public static boolean isEncryptedConnection(InetAddressAndPort remoteAddress)
     {
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
+        Endpoint localEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(FBUtilities.getBroadcastAddressAndPort());
+        Endpoint remoteEndpoint = StorageService.instance.getTokenMetadata().getEndpointForAddress(remoteAddress);
+
         switch (DatabaseDescriptor.getInternodeMessagingEncyptionOptions().internode_encryption)
         {
             case none:
@@ -1691,13 +1695,13 @@ public final class MessagingService implements MessagingServiceMBean
             case all:
                 break;
             case dc:
-                if (snitch.getDatacenter(address).equals(snitch.getDatacenter(FBUtilities.getBroadcastAddressAndPort())))
+                if (snitch.getDatacenter(remoteEndpoint).equals(snitch.getDatacenter(localEndpoint)))
                     return false;
                 break;
             case rack:
                 // for rack then check if the DC's are the same.
-                if (snitch.getRack(address).equals(snitch.getRack(FBUtilities.getBroadcastAddressAndPort()))
-                    && snitch.getDatacenter(address).equals(snitch.getDatacenter(FBUtilities.getBroadcastAddressAndPort())))
+                if (snitch.getRack(remoteEndpoint).equals(snitch.getRack(localEndpoint))
+                    && snitch.getDatacenter(remoteEndpoint).equals(snitch.getDatacenter(localEndpoint)))
                     return false;
                 break;
         }
