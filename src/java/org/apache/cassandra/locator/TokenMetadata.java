@@ -243,12 +243,10 @@ public class TokenMetadata
         final Endpoint newEndpoint = endpointToUpdate.clone();
         newEndpoint.setHostId(hostId);
 
-
-
         lock.writeLock().lock();
         try
         {
-            if (!allEndpoints.contains(endpointToUpdate))
+            if (!allEndpoints.contains(endpointToUpdate) && !allEndpoints.contains(newEndpoint))
             {
                 logger.info("The provided endpoint " + endpointToUpdate.toString() + " doesn't exists in TokenMetadata, adding new");
                 allEndpoints.add(newEndpoint);

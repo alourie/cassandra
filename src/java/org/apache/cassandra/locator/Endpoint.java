@@ -21,11 +21,17 @@ package org.apache.cassandra.locator;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.gms.ApplicationState;
+import org.apache.cassandra.gms.EndpointState;
+import org.apache.cassandra.gms.VersionedValue;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
@@ -49,6 +55,20 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     private static final Logger logger = LoggerFactory.getLogger(Endpoint.class);
     private static final long serialVersionUID = 0;
 
+    // Define states
+    public static final ApplicationState[] STATES = ApplicationState.values();
+    public static final List<String> DEAD_STATES = Arrays.asList(VersionedValue.REMOVING_TOKEN, VersionedValue.REMOVED_TOKEN,
+                                                                 VersionedValue.STATUS_LEFT, VersionedValue.HIBERNATE);
+    public static ArrayList<String> SILENT_SHUTDOWN_STATES = new ArrayList<>();
+
+    static
+    {
+        Endpoint.SILENT_SHUTDOWN_STATES.addAll(DEAD_STATES);
+        Endpoint.SILENT_SHUTDOWN_STATES.add(VersionedValue.STATUS_BOOTSTRAPPING);
+        Endpoint.SILENT_SHUTDOWN_STATES.add(VersionedValue.STATUS_BOOTSTRAPPING_REPLACE);
+    }
+    public EndpointState state;
+
     private InetAddressAndPort listenAddress;
     private InetAddressAndPort broadcastAddress;
     // TODO: do we still need it?? Can't say
@@ -56,6 +76,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     private InetAddressAndPort broadcastNativeAddress;
     private InetAddressAndPort preferredAddress = null;
 
+    // TODO: might not be needed as we keep a versioned one as ApplicationState.HOST_ID
     private UUID hostId;
 
 
@@ -101,6 +122,34 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 
         // hostId can be null in some cases, for example when seeds list is initiated and only IP is known
         this.hostId = hostId;
+    }
+
+    public String getGossipStatus()
+    {
+        return getGossipStatus(state);
+    }
+
+    public static String getGossipStatus(EndpointState epState)
+    {
+        if (epState == null)
+        {
+            return "";
+        }
+
+        VersionedValue versionedValue = epState.getApplicationState(ApplicationState.STATUS_WITH_PORT);
+        if (versionedValue == null)
+        {
+            versionedValue = epState.getApplicationState(ApplicationState.STATUS);
+            if (versionedValue == null)
+            {
+                return "";
+            }
+        }
+
+        String value = versionedValue.value;
+        String[] pieces = value.split(VersionedValue.DELIMITER_STR, -1);
+        assert (pieces.length > 0);
+        return pieces[0];
     }
 
     @Override
@@ -263,6 +312,49 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             );
         return localEndpoint;
     }
+
+    public boolean isShutdown()
+    {
+        if (state == null)
+        {
+            return false;
+        }
+
+        VersionedValue versionedValue = state.getApplicationState(ApplicationState.STATUS_WITH_PORT);
+        if (versionedValue == null)
+        {
+            versionedValue = state.getApplicationState(ApplicationState.STATUS);
+            if (versionedValue == null)
+            {
+                return false;
+            }
+        }
+
+        String value = versionedValue.value;
+        String[] pieces = value.split(VersionedValue.DELIMITER_STR, -1);
+        assert (pieces.length > 0);
+        String state = pieces[0];
+        return state.equals(VersionedValue.SHUTDOWN);
+    }
+
+    public boolean isAlive()
+    {
+        return state.isAlive();
+    }
+
+    public boolean isSilentShutdownState()
+    {
+        String status = getGossipStatus();
+        return !status.isEmpty() && SILENT_SHUTDOWN_STATES.contains(status);
+    }
+
+    public boolean inDeadState()
+    {
+        String status = getGossipStatus();
+        return !status.isEmpty() && DEAD_STATES.contains(status);
+    }
+
+
 }
 
     //    public static UUID getHostId()

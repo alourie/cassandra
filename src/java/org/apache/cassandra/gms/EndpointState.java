@@ -20,15 +20,18 @@ package org.apache.cassandra.gms;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.utils.CassandraVersion;
 
 /**
@@ -183,6 +186,22 @@ public class EndpointState
     {
         return "EndpointState: HeartBeatState = " + hbState + ", AppStateMap = " + applicationState.get();
     }
+
+    /**
+     * Return either: the greatest heartbeat or application state
+     *
+     * @return
+     */
+    int getMaxEndpointStateVersion()
+    {
+        int maxVersion = getHeartBeatState().getHeartBeatVersion();
+        return Math.max(maxVersion, Collections.max(allVersionedValues()));
+    }
+
+    private List<Integer> allVersionedValues()
+    {
+        return applicationState.get().values().stream().map(e -> e.version).collect(Collectors.toList());
+    }
 }
 
 class EndpointStateSerializer implements IVersionedSerializer<EndpointState>
@@ -214,7 +233,7 @@ class EndpointStateSerializer implements IVersionedSerializer<EndpointState>
         {
             int key = in.readInt();
             VersionedValue value = VersionedValue.serializer.deserialize(in, version);
-            states.put(Gossiper.STATES[key], value);
+            states.put(Endpoint.STATES[key], value);
         }
 
         return new EndpointState(hbState, states);

@@ -122,7 +122,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     public String getAllEndpointStates(boolean withPort)
     {
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.endpointStateMap.entrySet())
+        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.gossipEndpoints.entrySet())
         {
             sb.append(entry.getKey().toString(withPort)).append("\n");
             appendEndpointState(sb, entry.getValue());
@@ -142,8 +142,8 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
 
     private Map<String, String> getSimpleStates(boolean withPort)
     {
-        Map<String, String> nodesStatus = new HashMap<String, String>(Gossiper.instance.endpointStateMap.size());
-        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.endpointStateMap.entrySet())
+        Map<String, String> nodesStatus = new HashMap<String, String>(Gossiper.instance.gossipEndpoints.size());
+        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.gossipEndpoints.entrySet())
         {
             if (entry.getValue().isAlive())
                 nodesStatus.put(entry.getKey().toString(withPort), "UP");
@@ -156,7 +156,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     public int getDownEndpointCount()
     {
         int count = 0;
-        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.endpointStateMap.entrySet())
+        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.gossipEndpoints.entrySet())
         {
             if (!entry.getValue().isAlive())
                 count++;
@@ -167,7 +167,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     public int getUpEndpointCount()
     {
         int count = 0;
-        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.endpointStateMap.entrySet())
+        for (Map.Entry<InetAddressAndPort, EndpointState> entry : Gossiper.instance.gossipEndpoints.entrySet())
         {
             if (entry.getValue().isAlive())
                 count++;

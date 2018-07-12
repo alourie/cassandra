@@ -692,7 +692,7 @@ public class LeaveAndBootstrapTest
         // mark the node as removed
         Gossiper.instance.injectApplicationState(toRemove, ApplicationState.STATUS,
                 valueFactory.left(Collections.singleton(endpointTokens.get(1)), Gossiper.computeExpireTime()));
-        assertTrue(Gossiper.instance.isDeadState(Gossiper.instance.getEndpointStateForEndpoint(hosts.get(1))));
+        assertTrue(Gossiper.instance.getEndpointStateForEndpoint(hosts.get(1)).isDeadState(Gossiper.instance.getEndpointStateForEndpoint(hosts.get(1))));
 
         // state changes made after the endpoint has left should be ignored
         ss.onChange(hosts.get(1), ApplicationState.RACK,

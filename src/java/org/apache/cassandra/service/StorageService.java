@@ -2116,7 +2116,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         else
         {
             EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
-            if (epState == null || Gossiper.instance.isDeadState(epState))
+            if (epState == null || epState.isDeadState(epState))
             {
                 logger.debug("Ignoring state change for dead or unknown endpoint: {}", endpoint);
                 return;
@@ -3124,7 +3124,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             if (excludeDeadStates)
             {
                 EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(ep);
-                if (epState == null || Gossiper.instance.isDeadState(epState))
+                if (epState == null || epState.isDeadState(epState))
                     continue;
             }
 
@@ -4448,10 +4448,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!replicatingNodes.isEmpty()  || tokenMetadata.getSizeOfLeavingEndpoints() > 0)
         {
             logger.warn("Removal not confirmed for for {}", StringUtils.join(this.replicatingNodes, ","));
-            for (InetAddressAndPort endpoint : tokenMetadata.getLeavingEndpoints())
+            for (Endpoint endpoint : tokenMetadata.getLeavingEndpoints())
             {
-                UUID hostId = tokenMetadata.getHostId(endpoint);
-                Gossiper.instance.advertiseTokenRemoved(endpoint, hostId);
+                Gossiper.instance.advertiseTokenRemoved(endpoint);
                 excise(tokenMetadata.getTokens(endpoint), endpoint);
             }
             replicatingNodes.clear();
@@ -4477,7 +4476,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         InetAddressAndPort myAddress = FBUtilities.getBroadcastAddressAndPort();
         UUID localHostId = tokenMetadata.getHostId(myAddress);
         UUID hostId = UUID.fromString(hostIdString);
-        InetAddressAndPort endpoint = tokenMetadata.getEndpointForHostId(hostId);
+        Endpoint endpoint = tokenMetadata.getEndpointForHostId(hostId);
 
         if (endpoint == null)
             throw new UnsupportedOperationException("Host ID not found.");
@@ -4526,7 +4525,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         // the gossiper will handle spoofing this node's state to REMOVING_TOKEN for us
         // we add our own token so other nodes to let us know when they're done
-        Gossiper.instance.advertiseRemoving(endpoint, hostId, localHostId);
+        Gossiper.instance.advertiseRemoving(endpoint, localHostId);
 
         // kick off streaming commands
         restoreReplicaCount(endpoint, myAddress);
@@ -4540,7 +4539,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         excise(tokens, endpoint);
 
         // gossiper will indicate the token has left
-        Gossiper.instance.advertiseTokenRemoved(endpoint, hostId);
+        Gossiper.instance.advertiseTokenRemoved(endpoint);
 
         replicatingNodes.clear();
         removingNode = null;

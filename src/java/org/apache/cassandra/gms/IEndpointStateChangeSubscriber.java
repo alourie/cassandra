@@ -34,17 +34,16 @@ public interface IEndpointStateChangeSubscriber
      * for specified endpoint
      *
      * @param endpoint endpoint for which the state change occurred.
-     * @param epState  state that actually changed for the above endpoint.
      */
-    public void onJoin(Endpoint endpoint, EndpointState epState);
+    public void onJoin(Endpoint endpoint);
     
     public void beforeChange(Endpoint endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue);
 
     public void onChange(Endpoint endpoint, ApplicationState state, VersionedValue value);
 
-    public void onAlive(Endpoint endpoint, EndpointState state);
+    public void onAlive(Endpoint endpoint);
 
-    public void onDead(Endpoint endpoint, EndpointState state);
+    public void onDead(Endpoint endpoint);
 
     public void onRemove(Endpoint endpoint);
 
@@ -54,5 +53,5 @@ public interface IEndpointStateChangeSubscriber
      * previously marked down. It will have only if {@code state.isAlive() == false}
      * as {@code state} is from before the restarted node is marked up.
      */
-    public void onRestart(Endpoint endpoint, EndpointState state);
+    public void onRestart(Endpoint endpoint);
 }
