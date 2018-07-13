@@ -37,11 +37,11 @@ public interface IEndpointStateChangeSubscriber
      */
     public void onJoin(Endpoint endpoint);
     
-    public void beforeChange(Endpoint endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue);
+    public void beforeChange(Endpoint endpoint, ApplicationState newStateKey, VersionedValue newValue);
 
     public void onChange(Endpoint endpoint, ApplicationState state, VersionedValue value);
 
-    public void onAlive(Endpoint endpoint);
+    public void onAlive(Endpoint endpoint, EndpointState newState);
 
     public void onDead(Endpoint endpoint);
 

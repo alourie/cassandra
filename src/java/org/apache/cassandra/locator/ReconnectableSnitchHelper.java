@@ -84,7 +84,7 @@ public class ReconnectableSnitchHelper implements IEndpointStateChangeSubscriber
 
     public void onJoin(InetAddressAndPort endpoint, EndpointState epState)
     {
-        if (preferLocal && !epState.isDeadState(epState))
+        if (preferLocal && !epState.inDeadState())
         {
             VersionedValue address = epState.getApplicationState(ApplicationState.INTERNAL_ADDRESS_AND_PORT);
             if (address == null)

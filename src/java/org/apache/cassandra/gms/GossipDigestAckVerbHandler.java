@@ -83,7 +83,7 @@ public class GossipDigestAckVerbHandler implements IVerbHandler<GossipDigestAck>
         for (GossipDigest gDigest : gDigestList)
         {
             InetAddressAndPort addr = gDigest.getEndpoint();
-            EndpointState localEpStatePtr = Gossiper.instance.getStateForVersionBiggerThan(addr, gDigest.getMaxVersion());
+            EndpointState localEpStatePtr = addr.getStateForVersionBiggerThan(gDigest.getMaxVersion());
             if (localEpStatePtr != null)
                 deltaEpStateMap.put(addr, localEpStatePtr);
         }

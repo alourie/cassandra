@@ -38,6 +38,7 @@ import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
@@ -70,7 +71,7 @@ public class MigrationManager
      * If versions differ this node sends request with local migration list to the endpoint
      * and expecting to receive a list of migrations to apply locally.
      */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddressAndPort endpoint)
+    private static void maybeScheduleSchemaPull(final UUID theirVersion, final Endpoint endpoint)
     {
         if (Schema.instance.getVersion() == null)
         {
@@ -109,7 +110,8 @@ public class MigrationManager
             Runnable runnable = () ->
             {
                 // grab the latest version of the schema since it may have changed again since the initial scheduling
-                UUID epSchemaVersion = Gossiper.instance.getSchemaVersion(endpoint);
+                UUID epSchemaVersion = endpoint.state == null ? null : endpoint.state.getSchemaVersion();
+
                 if (epSchemaVersion == null)
                 {
                     logger.debug("epState vanished for {}, not submitting migration task", endpoint);
@@ -139,7 +141,7 @@ public class MigrationManager
         return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint));
     }
 
-    static boolean shouldPullSchemaFrom(InetAddressAndPort endpoint)
+    static boolean shouldPullSchemaFrom(Endpoint endpoint)
     {
         /*
          * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)

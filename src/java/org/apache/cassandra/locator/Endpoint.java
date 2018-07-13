@@ -19,11 +19,7 @@
 package org.apache.cassandra.locator;
 
 import java.io.Serializable;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -35,7 +31,6 @@ import org.apache.cassandra.gms.VersionedValue;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
-import org.hsqldb.lib.Storage;
 
 /**
  * A class to replace the usage of InetAddress to identify hosts in the cluster.
@@ -55,18 +50,6 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     private static final Logger logger = LoggerFactory.getLogger(Endpoint.class);
     private static final long serialVersionUID = 0;
 
-    // Define states
-    public static final ApplicationState[] STATES = ApplicationState.values();
-    public static final List<String> DEAD_STATES = Arrays.asList(VersionedValue.REMOVING_TOKEN, VersionedValue.REMOVED_TOKEN,
-                                                                 VersionedValue.STATUS_LEFT, VersionedValue.HIBERNATE);
-    public static ArrayList<String> SILENT_SHUTDOWN_STATES = new ArrayList<>();
-
-    static
-    {
-        Endpoint.SILENT_SHUTDOWN_STATES.addAll(DEAD_STATES);
-        Endpoint.SILENT_SHUTDOWN_STATES.add(VersionedValue.STATUS_BOOTSTRAPPING);
-        Endpoint.SILENT_SHUTDOWN_STATES.add(VersionedValue.STATUS_BOOTSTRAPPING_REPLACE);
-    }
     public EndpointState state;
 
     private InetAddressAndPort listenAddress;
@@ -126,30 +109,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 
     public String getGossipStatus()
     {
-        return getGossipStatus(state);
-    }
-
-    public static String getGossipStatus(EndpointState epState)
-    {
-        if (epState == null)
-        {
-            return "";
-        }
-
-        VersionedValue versionedValue = epState.getApplicationState(ApplicationState.STATUS_WITH_PORT);
-        if (versionedValue == null)
-        {
-            versionedValue = epState.getApplicationState(ApplicationState.STATUS);
-            if (versionedValue == null)
-            {
-                return "";
-            }
-        }
-
-        String value = versionedValue.value;
-        String[] pieces = value.split(VersionedValue.DELIMITER_STR, -1);
-        assert (pieces.length > 0);
-        return pieces[0];
+        return EndpointState.getGossipStatus(state);
     }
 
     @Override
@@ -345,16 +305,14 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     public boolean isSilentShutdownState()
     {
         String status = getGossipStatus();
-        return !status.isEmpty() && SILENT_SHUTDOWN_STATES.contains(status);
+        return !status.isEmpty() && EndpointState.SILENT_SHUTDOWN_STATES.contains(status);
     }
 
-    public boolean inDeadState()
+
+    public EndpointState getStateForVersionBiggerThan(int version)
     {
-        String status = getGossipStatus();
-        return !status.isEmpty() && DEAD_STATES.contains(status);
+        return state.getStateForVersionBiggerThan(version, getLocalEndpoint().toString());
     }
-
-
 }
 
     //    public static UUID getHostId()

@@ -42,9 +42,22 @@ import org.apache.cassandra.utils.CassandraVersion;
 
 public class EndpointState
 {
+    // Define states
     protected static final Logger logger = LoggerFactory.getLogger(EndpointState.class);
-
     public final static IVersionedSerializer<EndpointState> serializer = new EndpointStateSerializer();
+
+    public static final List<String> DEAD_STATES = Arrays.asList(VersionedValue.REMOVING_TOKEN, VersionedValue.REMOVED_TOKEN,
+                                                                 VersionedValue.STATUS_LEFT, VersionedValue.HIBERNATE);
+
+    public static final ApplicationState[] STATES = ApplicationState.values();
+    public static ArrayList<String> SILENT_SHUTDOWN_STATES = new ArrayList<>();
+
+    static
+    {
+        EndpointState.SILENT_SHUTDOWN_STATES.addAll(EndpointState.DEAD_STATES);
+        EndpointState.SILENT_SHUTDOWN_STATES.add(VersionedValue.STATUS_BOOTSTRAPPING);
+        EndpointState.SILENT_SHUTDOWN_STATES.add(VersionedValue.STATUS_BOOTSTRAPPING_REPLACE);
+    }
 
     private volatile HeartBeatState hbState;
     private final AtomicReference<Map<ApplicationState, VersionedValue>> applicationState;
@@ -113,6 +126,7 @@ public class EndpointState
     }
 
     /* getters and setters */
+
     /**
      * @return System.nanoTime() when state was updated last time.
      */
@@ -202,6 +216,81 @@ public class EndpointState
     {
         return applicationState.get().values().stream().map(e -> e.version).collect(Collectors.toList());
     }
+
+    public static String getGossipStatus(EndpointState epState)
+    {
+        if (epState == null)
+        {
+            return "";
+        }
+
+        VersionedValue versionedValue = epState.getApplicationState(ApplicationState.STATUS_WITH_PORT);
+        if (versionedValue == null)
+        {
+            versionedValue = epState.getApplicationState(ApplicationState.STATUS);
+            if (versionedValue == null)
+            {
+                return "";
+            }
+        }
+
+        String value = versionedValue.value;
+        String[] pieces = value.split(VersionedValue.DELIMITER_STR, -1);
+        assert (pieces.length > 0);
+        return pieces[0];
+    }
+
+    public boolean inDeadState()
+    {
+        String status = getGossipStatus(this);
+        return !status.isEmpty() && DEAD_STATES.contains(status);
+    }
+
+
+    public EndpointState getStateForVersionBiggerThan(int version, String endpointInfo)
+    {
+        EndpointState reqdEndpointState = null;
+
+        /*
+         * Here we try to include the Heart Beat state only if it is
+         * greater than the version passed in. It might happen that
+         * the heart beat version maybe lesser than the version passed
+         * in and some application state has a version that is greater
+         * than the version passed in. In this case we also send the old
+         * heart beat and throw it away on the receiver if it is redundant.
+         */
+        int localHbGeneration = getHeartBeatState().getGeneration();
+        int localHbVersion = getHeartBeatState().getHeartBeatVersion();
+        if (localHbVersion > version)
+        {
+            reqdEndpointState = new EndpointState(new HeartBeatState(localHbGeneration, localHbVersion));
+            if (logger.isTraceEnabled())
+                logger.trace("local heartbeat version {} greater than {} for {}", localHbVersion, version, endpointInfo);
+        }
+        /* Accumulate all application states whose versions are greater than "version" variable */
+        Map<ApplicationState, VersionedValue> states = new EnumMap<>(ApplicationState.class);
+        for (Map.Entry<ApplicationState, VersionedValue> entry : statesWithHigherVersion(version))
+        {
+            final VersionedValue value = entry.getValue();
+            final ApplicationState key = entry.getKey();
+
+            if (reqdEndpointState == null)
+                reqdEndpointState = new EndpointState(new HeartBeatState(localHbGeneration, localHbVersion));
+            if (logger.isTraceEnabled())
+                logger.trace("Adding state {}: {}", key, value.value);
+
+            states.put(key, value);
+        }
+        if (reqdEndpointState != null)
+            reqdEndpointState.addApplicationStates(states);
+
+        return reqdEndpointState;
+    }
+
+    private Set<Map.Entry<ApplicationState, VersionedValue>> statesWithHigherVersion(int version)
+    {
+        return states().stream().filter(e -> e.getValue().version > version).collect(Collectors.toSet());
+    }
 }
 
 class EndpointStateSerializer implements IVersionedSerializer<EndpointState>
@@ -233,7 +322,7 @@ class EndpointStateSerializer implements IVersionedSerializer<EndpointState>
         {
             int key = in.readInt();
             VersionedValue value = VersionedValue.serializer.deserialize(in, version);
-            states.put(Endpoint.STATES[key], value);
+            states.put(EndpointState.STATES[key], value);
         }
 
         return new EndpointState(hbState, states);
