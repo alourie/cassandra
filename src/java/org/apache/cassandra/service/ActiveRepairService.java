@@ -59,6 +59,7 @@ import org.apache.cassandra.gms.IFailureDetector;
 import org.apache.cassandra.gms.IEndpointStateChangeSubscriber;
 import org.apache.cassandra.gms.IFailureDetectionEventListener;
 import org.apache.cassandra.gms.VersionedValue;
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.net.IAsyncCallbackWithFailure;
@@ -296,12 +297,12 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
      *
      * @return neighbors with whom we share the provided range
      */
-    public static Set<InetAddressAndPort> getNeighbors(String keyspaceName, Collection<Range<Token>> keyspaceLocalRanges,
+    public static Set<Endpoint> getNeighbors(String keyspaceName, Collection<Range<Token>> keyspaceLocalRanges,
                                                        Range<Token> toRepair, Collection<String> dataCenters,
                                                        Collection<String> hosts)
     {
         StorageService ss = StorageService.instance;
-        Map<Range<Token>, List<InetAddressAndPort>> replicaSets = ss.getRangeToAddressMap(keyspaceName);
+        Map<Range<Token>, List<Endpoint>> replicaSets = ss.getRangeToAddressMap(keyspaceName);
         Range<Token> rangeSuperSet = null;
         for (Range<Token> range : keyspaceLocalRanges)
         {
@@ -321,17 +322,17 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
         if (rangeSuperSet == null || !replicaSets.containsKey(rangeSuperSet))
             return Collections.emptySet();
 
-        Set<InetAddressAndPort> neighbors = new HashSet<>(replicaSets.get(rangeSuperSet));
+        Set<Endpoint> neighbors = new HashSet<>(replicaSets.get(rangeSuperSet));
         neighbors.remove(FBUtilities.getBroadcastAddressAndPort());
 
         if (dataCenters != null && !dataCenters.isEmpty())
         {
             TokenMetadata.Topology topology = ss.getTokenMetadata().cloneOnlyTokenMap().getTopology();
-            Set<InetAddressAndPort> dcEndpoints = Sets.newHashSet();
-            Multimap<String,InetAddressAndPort> dcEndpointsMap = topology.getDatacenterEndpoints();
+            Set<Endpoint> dcEndpoints = Sets.newHashSet();
+            Multimap<String,Endpoint> dcEndpointsMap = topology.getDatacenterEndpoints();
             for (String dc : dataCenters)
             {
-                Collection<InetAddressAndPort> c = dcEndpointsMap.get(dc);
+                Collection<Endpoint> c = dcEndpointsMap.get(dc);
                 if (c != null)
                    dcEndpoints.addAll(c);
             }

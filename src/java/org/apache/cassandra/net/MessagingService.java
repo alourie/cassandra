@@ -1243,7 +1243,7 @@ public final class MessagingService implements MessagingServiceMBean
     /**
      * Returns the messaging-version exactly as announced by the given endpoint.
      */
-    public int getRawVersion(InetAddressAndPort endpoint)
+    public int getRawVersion(Endpoint endpoint)
     {
         Integer v = versions.get(endpoint);
         if (v == null)
@@ -1251,7 +1251,7 @@ public final class MessagingService implements MessagingServiceMBean
         return v;
     }
 
-    public boolean knowsVersion(InetAddressAndPort endpoint)
+    public boolean knowsVersion(Endpoint endpoint)
     {
         return versions.containsKey(endpoint);
     }

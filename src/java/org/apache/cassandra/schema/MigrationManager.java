@@ -60,19 +60,19 @@ public class MigrationManager
 
     private MigrationManager() {}
 
-    public static void scheduleSchemaPull(InetAddressAndPort endpoint, EndpointState state)
+    public static void scheduleSchemaPull(Endpoint endpoint)
     {
-        UUID schemaVersion = state.getSchemaVersion();
-        if (!endpoint.equals(FBUtilities.getBroadcastAddressAndPort()) && schemaVersion != null)
-            maybeScheduleSchemaPull(schemaVersion, endpoint);
+        if (!endpoint.equals(Endpoint.getLocalEndpoint()) && endpoint.state.getSchemaVersion() != null)
+            maybeScheduleSchemaPull(endpoint);
     }
 
     /**
      * If versions differ this node sends request with local migration list to the endpoint
      * and expecting to receive a list of migrations to apply locally.
      */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final Endpoint endpoint)
+    private static void maybeScheduleSchemaPull(final Endpoint endpoint)
     {
+        final UUID theirVersion = endpoint.state.getSchemaVersion();
         if (Schema.instance.getVersion() == null)
         {
             logger.debug("Not pulling schema from {}, because local schama version is not known yet",
@@ -132,7 +132,7 @@ public class MigrationManager
         }
     }
 
-    private static Future<?> submitMigrationTask(InetAddressAndPort endpoint)
+    private static Future<?> submitMigrationTask(Endpoint endpoint)
     {
         /*
          * Do not de-ref the future because that causes distributed deadlock (CASSANDRA-3832) because we are

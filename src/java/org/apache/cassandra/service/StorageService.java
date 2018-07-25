@@ -485,16 +485,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         InetAddressAndPort replaceAddress = DatabaseDescriptor.getReplaceAddress();
         logger.info("Gathering node replacement information for {}", replaceAddress);
-        Map<Endpoint, EndpointState> epStates = Gossiper.instance.doShadowRound();
+        Set<Endpoint> shadowRoundEndpoints = Gossiper.instance.doShadowRound();
         // as we've completed the shadow round of gossip, we should be able to find the node we're replacing
-        Set<Endpoint> gossipEndpoints = epStates.keySet().stream()
+        Set<Endpoint> gossipEndpoints = shadowRoundEndpoints.stream()
                                           .filter(e->e.hasAddress(replaceAddress))
                                           .filter(FailureDetector.instance::isAlive)
                                           .collect(Collectors.toSet());
-        if (gossipEndpoints.size() == 0)
+        if (gossipEndpoints.isEmpty())
             throw new RuntimeException(String.format("Cannot replace_address %s because it doesn't exist in gossip", replaceAddress));
 
-        validateEndpointSnitch(epStates.values().iterator());
+        validateEndpointSnitch(shadowRoundEndpoints.stream().map(e -> e.state).iterator());
 
         try
         {
@@ -502,7 +502,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             if (gossipEndpoints.size() > 1)
                 throw new RuntimeException(String.format("Found 2 live nodes with the same IP %s", replaceAddress));
 
-            tokensVersionedValue = epStates.get(gossipEndpoints.iterator().next()).getApplicationState(ApplicationState.TOKENS);
+            tokensVersionedValue = gossipEndpoints.iterator().next().state.getApplicationState(ApplicationState.TOKENS);
             if (tokensVersionedValue == null)
                 throw new RuntimeException(String.format("Could not find tokens for %s to replace", replaceAddress));
 
@@ -2115,8 +2115,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
         else
         {
-            EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
-            if (epState == null || epState.isDeadState(epState))
+            EndpointState epState = Gossiper.instance.getGossipEndpointByEndpoint(endpoint);
+            if (epState == null || epState.inDeadState())
             {
                 logger.debug("Ignoring state change for dead or unknown endpoint: {}", endpoint);
                 return;
@@ -2160,7 +2160,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                         break;
                     case SCHEMA:
                         SystemKeyspace.updatePeerInfo(endpoint, "schema_version", UUID.fromString(value.value));
-                        MigrationManager.instance.scheduleSchemaPull(endpoint, epState);
+                        MigrationManager.instance.scheduleSchemaPull(endpoint);
                         break;
                     case HOST_ID:
                         SystemKeyspace.updatePeerInfo(endpoint, "host_id", UUID.fromString(value.value));
@@ -2339,15 +2339,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             Gossiper.instance.addLocalApplicationState(ApplicationState.RPC_READY, valueFactory.rpcReady(value));
     }
 
-    private Collection<Token> getTokensFor(InetAddressAndPort endpoint)
+    private Collection<Token> getTokensFor(Endpoint endpoint)
     {
         try
         {
-            EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
-            if (state == null)
+            if (endpoint.state == null)
                 return Collections.emptyList();
 
-            VersionedValue versionedValue = state.getApplicationState(ApplicationState.TOKENS);
+            VersionedValue versionedValue = endpoint.state.getApplicationState(ApplicationState.TOKENS);
             if (versionedValue == null)
                 return Collections.emptyList();
 
@@ -2364,14 +2363,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      *
      * @param endpoint bootstrapping node
      */
-    private void handleStateBootstrap(InetAddressAndPort endpoint)
+    private void handleStateBootstrap(Endpoint endpoint)
     {
         Collection<Token> tokens;
         // explicitly check for TOKENS, because a bootstrapping node might be bootstrapping in legacy mode; that is, not using vnodes and no token specified
         tokens = getTokensFor(endpoint);
 
         if (logger.isDebugEnabled())
-            logger.debug("Node {} state bootstrapping, token {}", endpoint, tokens);
+            logger.debug("Node {} state bootstrapping, token {}", endpoint.toString(), tokens);
 
         // if this node is present in token metadata, either we have missed intermediate states
         // or the node had crashed. Print warning if needed, clear obsolete stuff and
@@ -2391,7 +2390,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         tokenMetadata.addBootstrapTokens(tokens, endpoint);
         PendingRangeCalculatorService.instance.update();
 
-        tokenMetadata.updateHostId(Gossiper.instance.getHostId(endpoint), endpoint);
+        Endpoint gossipEndpoint = Gossiper.instance.getGossipEndpointByEndpoint(endpoint);
+        if (gossipEndpoint != null && !gossipEndpoint.getHostId().equals(endpoint.getHostId()))
+            tokenMetadata.updateHostId(gossipEndpoint.getHostId(), endpoint);
     }
 
     private void handleStateBootreplacing(InetAddressAndPort newNode, String[] pieces)
@@ -2917,18 +2918,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return changedRanges;
     }
 
-    public void onJoin(InetAddressAndPort endpoint, EndpointState epState)
+    // TODO: not used??
+    public void onJoin(Endpoint endpoint)
     {
-        for (Map.Entry<ApplicationState, VersionedValue> entry : epState.states())
+        for (Map.Entry<ApplicationState, VersionedValue> entry : endpoint.state.states())
         {
             onChange(endpoint, entry.getKey(), entry.getValue());
         }
-        MigrationManager.instance.scheduleSchemaPull(endpoint, epState);
+        MigrationManager.instance.scheduleSchemaPull(endpoint);
     }
 
     public void onAlive(InetAddressAndPort endpoint, EndpointState state)
     {
-        MigrationManager.instance.scheduleSchemaPull(endpoint, state);
+        MigrationManager.instance.scheduleSchemaPull(endpoint);
 
         if (tokenMetadata.isMember(endpoint))
             notifyUp(endpoint);

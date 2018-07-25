@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.EndpointState;
+import org.apache.cassandra.gms.HeartBeatState;
 import org.apache.cassandra.gms.VersionedValue;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
@@ -52,6 +53,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
 
     public EndpointState state;
 
+
     private InetAddressAndPort listenAddress;
     private InetAddressAndPort broadcastAddress;
     // TODO: do we still need it?? Can't say
@@ -59,15 +61,10 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     private InetAddressAndPort broadcastNativeAddress;
     private InetAddressAndPort preferredAddress = null;
 
-    // TODO: might not be needed as we keep a versioned one as ApplicationState.HOST_ID
-    private UUID hostId;
-
-
     public Endpoint(final InetAddressAndPort listenAddress,
                     final InetAddressAndPort broadcastAddress,
                     final InetAddressAndPort nativeAddress,
-                    final InetAddressAndPort broadcastNativeAddress,
-                    final UUID hostId)
+                    final InetAddressAndPort broadcastNativeAddress)
     {
         if (listenAddress == null)
             throw new IllegalArgumentException("listen_address provided is empty!");
@@ -104,7 +101,6 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
         }
 
         // hostId can be null in some cases, for example when seeds list is initiated and only IP is known
-        this.hostId = hostId;
     }
 
     public String getGossipStatus()
@@ -116,7 +112,9 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     public boolean equals(Object o)
     {
         Endpoint that = (Endpoint) o;
-        return equalAddresses(o) && hostId.equals(that.hostId);
+        UUID localID = getHostId();
+        UUID thatID = that == null ? null : that.getHostId();
+        return equalAddresses(o) && ((localID == null && thatID == null) || (localID != null && localID.equals(thatID)));
     }
 
     public boolean equalAddresses(Object o)
@@ -151,15 +149,12 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     {
         int result = 0;
         result += listenAddress.hashCode() + broadcastAddress.hashCode() + nativeAddress.hashCode() + broadcastNativeAddress.hashCode();
-        return 31 * result + hostId.hashCode();
+        return 31 * result;
     }
 
     @Override
     public int compareTo(Endpoint o)
     {
-//
-//        if (o.hostId == null)
-//            return 1;
 
         int retvalAddresses = listenAddress.compareTo(o.listenAddress) + broadcastAddress.compareTo(o.broadcastAddress) + broadcastNativeAddress.compareTo(o.broadcastNativeAddress);
         if (retvalAddresses != 0)
@@ -167,11 +162,8 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             return retvalAddresses;
         }
 
-        int retvalHostId = hostId.compareTo(o.hostId);
-        if (retvalHostId != 0)
-        {
-            return retvalHostId;
-        }
+        // TODO: compare hostIDs
+        // TODO? : compare states?
 
         return 0;
     }
@@ -181,7 +173,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
     public String toString()
     {
         String endpoint = "Endpoint %s (hostId: %s)";
-        return String.format(endpoint, getPreferredAddress().toString(), hostId);
+        return String.format(endpoint, getPreferredAddress().toString(), getHostId());
     }
 
     public String toStringBig()
@@ -200,15 +192,9 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
         if (broadcastNativeAddress != null)
             endpoint += "Broadcast native address: " + broadcastNativeAddress.toString() + "\n";
 
-        endpoint += "HostID: " + hostId;
+        endpoint += "HostID: " + getHostId();
 
         return endpoint;
-    }
-
-    @Override
-    public Endpoint clone()
-    {
-        return new Endpoint(listenAddress, broadcastAddress, nativeAddress, broadcastNativeAddress, hostId);
     }
 
     public boolean hasAddress(InetAddressAndPort address)
@@ -222,17 +208,11 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
         this.broadcastAddress = sourceEndpoint.broadcastAddress;
         this.broadcastNativeAddress = sourceEndpoint.broadcastNativeAddress;
         this.nativeAddress = sourceEndpoint.nativeAddress;
-        this.hostId = sourceEndpoint.hostId;
     }
 
     public UUID getHostId()
     {
-        return hostId;
-    }
-
-    public void setHostId(final UUID uuid)
-    {
-        hostId = uuid;
+        return state == null ? null : UUID.fromString(state.getApplicationState(ApplicationState.HOST_ID).value);
     }
 
     public InetAddressAndPort getPreferredAddress()
@@ -242,6 +222,12 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             preferredAddress = MessagingService.instance().getPreferredRemoteAddr(broadcastAddress);
         }
         return preferredAddress;
+    }
+
+    public void resetPreferredAddress()
+    {
+        preferredAddress = null;
+        getPreferredAddress();
     }
 
     private InetAddressAndPort getDefaultNativeAddress()
@@ -267,8 +253,7 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
             FBUtilities.getLocalAddressAndPort(),
             FBUtilities.getBroadcastAddressAndPort(),
             null,
-            FBUtilities.getBroadcastNativeAddressAndPort(),
-            null
+            FBUtilities.getBroadcastNativeAddressAndPort()
             );
         return localEndpoint;
     }
@@ -293,8 +278,8 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
         String value = versionedValue.value;
         String[] pieces = value.split(VersionedValue.DELIMITER_STR, -1);
         assert (pieces.length > 0);
-        String state = pieces[0];
-        return state.equals(VersionedValue.SHUTDOWN);
+        String appState = pieces[0];
+        return appState.equals(VersionedValue.SHUTDOWN);
     }
 
     public boolean isAlive()
@@ -314,30 +299,4 @@ public final class Endpoint implements Comparable<Endpoint>, Serializable
         return state.getStateForVersionBiggerThan(version, getLocalEndpoint().toString());
     }
 }
-
-    //    public static UUID getHostId()
-//    {
-//
-//        UUID hostId = null;
-//        if (DatabaseDescriptor.isClientInitialized() || DatabaseDescriptor.isSystemKeyspaceReadable())
-//        {
-//            // check the peers first
-//            Endpoint testEndpoint = getByAddressOverrideDefaults(address, port, null);
-//            Optional<Endpoint> ep = SystemKeyspace.loadHostIds().keySet()
-//                                                  .stream().filter(e -> e.equalAddresses(testEndpoint)).findFirst();
-//            if (ep.isPresent())
-//                hostId = ep.get().hostId;
-//
-//            // if not found in peers, check local
-//            if (hostId == null)
-//            {
-//                hostId = SystemKeyspace.getLocalHostId(false);
-//            }
-//
-//            // If it's not local, and not a peer, it means it's not initialised yet, use null
-//
-//        }
-//
-//    }
-
 

@@ -37,11 +37,11 @@ public interface IEndpointStateChangeSubscriber
      */
     public void onJoin(Endpoint endpoint);
     
-    public void beforeChange(Endpoint endpoint, ApplicationState newStateKey, VersionedValue newValue);
+    public void beforeChange(Endpoint endpoint, ApplicationState state, VersionedValue value);
 
     public void onChange(Endpoint endpoint, ApplicationState state, VersionedValue value);
 
-    public void onAlive(Endpoint endpoint, EndpointState newState);
+    public void onAlive(Endpoint endpoint);
 
     public void onDead(Endpoint endpoint);
 
@@ -53,5 +53,5 @@ public interface IEndpointStateChangeSubscriber
      * previously marked down. It will have only if {@code state.isAlive() == false}
      * as {@code state} is from before the restarted node is marked up.
      */
-    public void onRestart(Endpoint endpoint);
+    public void onRestart(Endpoint endpoint, EndpointState state);
 }

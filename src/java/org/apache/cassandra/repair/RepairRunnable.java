@@ -48,6 +48,7 @@ import org.apache.cassandra.concurrent.JMXConfigurableThreadPoolExecutor;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.gms.FailureDetector;
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.repair.consistent.SyncStatSummary;
 import org.apache.cassandra.schema.SchemaConstants;
 import org.apache.cassandra.db.Keyspace;
@@ -143,10 +144,10 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     @VisibleForTesting
     static class CommonRange
     {
-        public final Set<InetAddressAndPort> endpoints;
+        public final Set<Endpoint> endpoints;
         public final Collection<Range<Token>> ranges;
 
-        public CommonRange(Set<InetAddressAndPort> endpoints, Collection<Range<Token>> ranges)
+        public CommonRange(Set<Endpoint> endpoints, Collection<Range<Token>> ranges)
         {
             Preconditions.checkArgument(endpoints != null && !endpoints.isEmpty());
             Preconditions.checkArgument(ranges != null && !ranges.isEmpty());
@@ -245,7 +246,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         {
             for (Range<Token> range : options.getRanges())
             {
-                Set<InetAddressAndPort> neighbors = ActiveRepairService.getNeighbors(keyspace, keyspaceLocalRanges, range,
+                Set<Endpoint> neighbors = ActiveRepairService.getNeighbors(keyspace, keyspaceLocalRanges, range,
                                                                                      options.getDataCenters(),
                                                                                      options.getHosts());
 

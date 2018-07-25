@@ -37,6 +37,7 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
+import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.BiMultiValMap;
@@ -239,41 +240,46 @@ public class TokenMetadata
     {
         assert hostId != null;
 
-        // Create a new object with an updated hostId
-        final Endpoint newEndpoint = endpointToUpdate.clone();
-        newEndpoint.setHostId(hostId);
-
         lock.writeLock().lock();
         try
         {
-            if (!allEndpoints.contains(endpointToUpdate) && !allEndpoints.contains(newEndpoint))
-            {
-                logger.info("The provided endpoint " + endpointToUpdate.toString() + " doesn't exists in TokenMetadata, adding new");
-                allEndpoints.add(newEndpoint);
-                return;
-            }
+            // First find if there's an existing live endpoint with this address
+            Endpoint existing = allEndpoints.stream()
+                                            .filter(e -> e.getPreferredAddress().equals(endpointToUpdate.getPreferredAddress()))
+                                            .filter(FailureDetector.instance::isAlive)
+                                            .findFirst().orElse(null);
 
-            if (allEndpoints.contains(newEndpoint))
-            {
-                logger.info("The provided endpoint with the provided ID already exists");
+            // if already exists with this id, do nothing
+            if ( (existing != null && existing.getHostId().equals(hostId))
+                 || (allEndpoints.contains(endpointToUpdate) && endpointToUpdate.getHostId().equals(hostId)) )
                 return;
-            }
 
             // Check if there's another live node with the same ID
             long liveEndpointsWithId = allEndpoints.stream()
-                                                    .filter(e -> e.getHostId().equals(hostId))
-                                                    .filter(FailureDetector.instance::isAlive)
-                                                    .filter(e -> e.equals(newEndpoint))
-                                                    .count();
+                                                            .filter(e -> e.getHostId().equals(hostId))
+                                                            .filter(FailureDetector.instance::isAlive)
+                                                            .count();
             if (liveEndpointsWithId > 0)
-                throw new RuntimeException(String.format("Host ID collision between active endpoint %s and a new %s",
-                                                         getEndpointForHostId(hostId),
-                                                         newEndpoint));
+                throw new RuntimeException(String.format("Host ID collision between active endpoint %s and a new uuid: %s",
+                                                         endpointToUpdate.toString(),
+                                                         hostId));
 
+            // If no endpoint exists or there's one to update, do the updates
 
-            // If no problems found, replace the entry with the hostID
-            allEndpoints.remove(endpointToUpdate);
-            allEndpoints.add(newEndpoint);
+            // If it doesn't exist, take the endpointToUpdate, put a new HOST_ID state and add it to the list
+            if ( existing == null )
+            {
+                logger.info("The provided endpoint " + endpointToUpdate.toString() + " doesn't exists in TokenMetadata, adding new");
+                endpointToUpdate.state.addApplicationState(ApplicationState.HOST_ID, StorageService.instance.valueFactory.hostId(hostId));
+                allEndpoints.remove(endpointToUpdate);
+                allEndpoints.add(endpointToUpdate);
+            }
+            // If it exists, do the same with existing
+            else {
+                existing.state.addApplicationState(ApplicationState.HOST_ID, StorageService.instance.valueFactory.hostId(hostId));
+                allEndpoints.remove(existing);
+                allEndpoints.add(existing);
+            }
         }
         finally
         {
@@ -319,7 +325,7 @@ public class TokenMetadata
                                .findFirst()
                                .orElse(null);
             if (endpoint == null && createIfDontExist)
-                endpoint = new Endpoint(address, null, null, null, null);
+                endpoint = new Endpoint(address, null, null, null);
 
             return endpoint;
         }

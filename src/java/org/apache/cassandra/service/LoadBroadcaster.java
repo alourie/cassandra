@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.slf4j.Logger;
@@ -52,9 +53,9 @@ public class LoadBroadcaster implements IEndpointStateChangeSubscriber
         loadInfo.put(endpoint, Double.valueOf(value.value));
     }
 
-    public void onJoin(InetAddressAndPort endpoint, EndpointState epState)
+    public void onJoin(Endpoint endpoint)
     {
-        VersionedValue localValue = epState.getApplicationState(ApplicationState.LOAD);
+        VersionedValue localValue = endpoint.state.getApplicationState(ApplicationState.LOAD);
         if (localValue != null)
         {
             onChange(endpoint, ApplicationState.LOAD, localValue);

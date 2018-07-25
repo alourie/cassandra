@@ -181,18 +181,18 @@ public class EndpointState
     @Nullable
     public UUID getSchemaVersion()
     {
-        VersionedValue applicationState = getApplicationState(ApplicationState.SCHEMA);
-        return applicationState != null
-               ? UUID.fromString(applicationState.value)
+        VersionedValue appState = getApplicationState(ApplicationState.SCHEMA);
+        return appState != null
+               ? UUID.fromString(appState.value)
                : null;
     }
 
     @Nullable
     public CassandraVersion getReleaseVersion()
     {
-        VersionedValue applicationState = getApplicationState(ApplicationState.RELEASE_VERSION);
-        return applicationState != null
-               ? new CassandraVersion(applicationState.value)
+        VersionedValue apState = getApplicationState(ApplicationState.RELEASE_VERSION);
+        return apState != null
+               ? new CassandraVersion(apState.value)
                : null;
     }
 

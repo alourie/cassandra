@@ -31,6 +31,7 @@ import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.SystemKeyspace.BootstrapState;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.gms.FailureDetector;
+import org.apache.cassandra.locator.Endpoint;
 import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.IAsyncCallback;
 import org.apache.cassandra.net.MessageIn;
@@ -46,9 +47,9 @@ final class MigrationTask extends WrappedRunnable
 
     private static final Set<BootstrapState> monitoringBootstrapStates = EnumSet.of(BootstrapState.NEEDS_BOOTSTRAP, BootstrapState.IN_PROGRESS);
 
-    private final InetAddressAndPort endpoint;
+    private final Endpoint endpoint;
 
-    MigrationTask(InetAddressAndPort endpoint)
+    MigrationTask(Endpoint endpoint)
     {
         this.endpoint = endpoint;
     }
