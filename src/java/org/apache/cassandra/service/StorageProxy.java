@@ -1735,6 +1735,7 @@ public class StorageProxy implements StorageProxyMBean
     throws UnavailableException, ReadFailureException, ReadTimeoutException
     {
         int cmdCount = commands.size();
+        Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
 
         SinglePartitionReadLifecycle[] reads = new SinglePartitionReadLifecycle[cmdCount];
         for (int i = 0; i < cmdCount; i++)
